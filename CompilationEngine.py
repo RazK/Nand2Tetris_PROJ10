@@ -10,7 +10,7 @@
 # Chapter 10, this module emits a structured printout of the code, wrapped in
 # XML tags. In the final version of the compiler, described in Chapter 11,
 # this module generates executable VM code. In both cases, the parsing logic
-# and module API are exactly the same.
+# and module API are exactly the same
 ##############################################################################
 
 class CompilationEngine:
