@@ -26,7 +26,7 @@ class JackTokenizer:
 
     ##################
     # PRIVATE METHODS
-    ##################
+    #################
 
     def __readFileToLine(self):
         """
