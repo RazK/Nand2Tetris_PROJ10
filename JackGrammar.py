@@ -8,7 +8,9 @@
 #######################
 import re
 
-RE_WHITESPACES = r'\s' # https://regex101.com/r/evyXL2/1
+RE_WHITESPACES         = r'\s' # https://regex101.com/r/evyXL2/1
+RE_END_OF_LINE_COMMENT = "//.*"  # https://regex101.com/r/PbLBSc/1
+RE_IN_LINE_COMMENTS    = "/\*.*?\*/"  #https://regex101.com/r/PbLBSc/2
 
 ############
 # KEYWORDS #
