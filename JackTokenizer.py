@@ -4,15 +4,18 @@
 # as specified by the Jack grammar.
 ##############################################################################
 
-############
-# CONSTANTS
-############
-DEFAULT_IN_FILE_LINE = ""
+#############
+# CONSTANTS #
+#############
+EMPTY_STRING = ""
+NO_MORE_TOKENS_ERROR_MSG = "There are no more tokens."
 
-##########
-# IMPORTS
-##########
+###########
+# IMPORTS #
+###########
 from JackGrammar import *
+import re
+
 
 class JackTokenizer:
     def __init__(self, in_file):
@@ -21,51 +24,61 @@ class JackTokenizer:
      :param in_file: The input jack file.
      """
         self.__in_file_name = in_file
-        self.__in_file_line = DEFAULT_IN_FILE_LINE
-        self.__readFileToLine()
+        self.__in_file_line = EMPTY_STRING  # Default value
+        self.__current_token = EMPTY_STRING  # Default value
 
-    ##################
-    # PRIVATE METHODS
-    #################
+        self.__readFileToLine()
+        self.__removeSpacesAndComments()
+
+    ###################
+    # PRIVATE METHODS #
+    ###################
 
     def __readFileToLine(self):
         """
         Reads the source file text into one line.
-        :return:
         """
         with open(self.__in_file_name) as file:
             for line in file:
-                test = "noy babe12"
-                new = test.replace(RE_WHITESPACES, "")
-                print(new)
+                line = re.sub(RE_END_OF_LINE_COMMENT, EMPTY_STRING, line)
                 self.__in_file_line += line
 
     def __removeSpacesAndComments(self):
         """
         Removes spaces and comments from source file.
-        :return:
         """
-        pass
+        self.__in_file_line = re.sub(RE_WHITESPACES, EMPTY_STRING,
+                                     self.__in_file_line)
+        self.__in_file_line = re.sub(RE_IN_LINE_COMMENTS, EMPTY_STRING,
+                                     self.__in_file_line)
 
-    #################
-    # PUBLIC METHODS
-    #################
+    ##################
+    # PUBLIC METHODS #
+    ##################
 
     def hasMoreTokens(self):
         """
         Do we have more tokens in the input?
-        :return: True if tere are more tokens.
+        :return: True if there are more tokens.
         """
-        pass
+        return not self.__in_file_line == EMPTY_STRING
 
     def advance(self):
         """
         Gets the next token from the input and makes it the current token.
         This method should only be called if hasMoreTokens() is true.
         Initially there is no current token.
+        """
+        if self.hasMoreTokens():
+            pass
+        else:
+            raise ValueError(NO_MORE_TOKENS_ERROR_MSG)
+
+    def tokenType(self):
+        """
+        Returns the type of the current token.
         :return: KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST
         """
-        pass
 
     def keyWord(self):
         """
