@@ -4,6 +4,18 @@
 # as specified by the Jack grammar.
 ##############################################################################
 
+#############
+# CONSTANTS #
+#############
+EMPTY_STRING = ""
+NO_MORE_TOKENS_ERROR_MSG = "There are no more tokens."
+
+###########
+# IMPORTS #
+###########
+from JackGrammar import *
+import re
+
 
 class JackTokenizer:
     def __init__(self, in_file):
@@ -11,27 +23,62 @@ class JackTokenizer:
      Opens the input file/stream and gets ready to tokenize it.
      :param in_file: The input jack file.
      """
-        pass
+        self.__in_file_name = in_file
+        self.__in_file_line = EMPTY_STRING  # Default value
+        self.__current_token = EMPTY_STRING  # Default value
 
-    #################
-    # PUBLIC METHODS
-    #################
+        self.__readFileToLine()
+        self.__removeSpacesAndComments()
+
+    ###################
+    # PRIVATE METHODS #
+    ###################
+
+    def __readFileToLine(self):
+        """
+        Reads the source file text into one line.
+        """
+        with open(self.__in_file_name) as file:
+            for line in file:
+                line = re.sub(RE_END_OF_LINE_COMMENT, EMPTY_STRING, line)
+                self.__in_file_line += line
+
+    def __removeSpacesAndComments(self):
+        """
+        Removes spaces and comments from source file.
+        """
+        self.__in_file_line = re.sub(RE_WHITESPACES, EMPTY_STRING,
+                                     self.__in_file_line)
+        self.__in_file_line = re.sub(RE_IN_LINE_COMMENTS, EMPTY_STRING,
+                                     self.__in_file_line)
+
+    ##################
+    # PUBLIC METHODS #
+    ##################
 
     def hasMoreTokens(self):
         """
         Do we have more tokens in the input?
-        :return: True if tere are more tokens.
+        :return: True if there are more tokens.
         """
-        pass
+        return not self.__in_file_line == EMPTY_STRING
 
     def advance(self):
         """
         Gets the next token from the input and makes it the current token.
         This method should only be called if hasMoreTokens() is true.
         Initially there is no current token.
+        """
+        if self.hasMoreTokens():
+            pass
+        else:
+            raise ValueError(NO_MORE_TOKENS_ERROR_MSG)
+
+    def tokenType(self):
+        """
+        Returns the type of the current token.
         :return: KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST
         """
-        pass
 
     def keyWord(self):
         """
@@ -70,3 +117,19 @@ class JackTokenizer:
         quotes. Should be called only when tokenType() is STRING_CONST.
         """
         pass
+
+
+#################
+# TESTS and shit
+#################
+
+def main():
+    """
+    Tests for the Tokenizer module
+    """
+
+    tok = JackTokenizer("file.jack")
+
+
+if __name__ == "__main__":
+    main()
