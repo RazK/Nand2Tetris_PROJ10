@@ -4,6 +4,15 @@
 # as specified by the Jack grammar.
 ##############################################################################
 
+############
+# CONSTANTS
+############
+DEFAULT_IN_FILE_LINE = ""
+
+##########
+# IMPORTS
+##########
+from JackGrammar import *
 
 class JackTokenizer:
     def __init__(self, in_file):
@@ -11,6 +20,31 @@ class JackTokenizer:
      Opens the input file/stream and gets ready to tokenize it.
      :param in_file: The input jack file.
      """
+        self.__in_file_name = in_file
+        self.__in_file_line = DEFAULT_IN_FILE_LINE
+        self.__readFileToLine()
+
+    ##################
+    # PRIVATE METHODS
+    ##################
+
+    def __readFileToLine(self):
+        """
+        Reads the source file text into one line.
+        :return:
+        """
+        with open(self.__in_file_name) as file:
+            for line in file:
+                test = "noy babe12"
+                new = test.replace(RE_WHITESPACES, "")
+                print(new)
+                self.__in_file_line += line
+
+    def __removeSpacesAndComments(self):
+        """
+        Removes spaces and comments from source file.
+        :return:
+        """
         pass
 
     #################
@@ -70,3 +104,19 @@ class JackTokenizer:
         quotes. Should be called only when tokenType() is STRING_CONST.
         """
         pass
+
+
+#################
+# TESTS and shit
+#################
+
+def main():
+    """
+    Tests for the Tokenizer module
+    """
+
+    tok = JackTokenizer("file.jack")
+
+
+if __name__ == "__main__":
+    main()
