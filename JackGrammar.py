@@ -9,11 +9,11 @@ import re
 ############################
 RE_WHITESPACES = r'\s'  # https://regex101.com/r/evyXL2/1
 RE_COMMENT_END_OF_LINE = r'//.*'  # https://regex101.com/r/PbLBSc/1
-RE_COMMENT_INLINE = r'/\*.*?\*/'  # https://regex101.com/r/PbLBSc/2
-WHITESPACE_AND_COMMENTS = [RE_WHITESPACES, RE_COMMENT_END_OF_LINE,
-                           RE_COMMENT_INLINE]
-RE_WHITESPACE_AND_COMMENTS = r''.join(WHITESPACE_AND_COMMENTS) # TODO: FIX
-RE_WHITESPACE_AND_COMMENTS_COMPILED = re.compile(RE_WHITESPACE_AND_COMMENTS)
+RE_COMMENT_INLINE = r'/\*[\s\S]*?\*/'  # https://regex101.com/r/PbLBSc/3
+
+RE_COMMENT_END_OF_LINE = re.compile(RE_COMMENT_END_OF_LINE)
+RE_COMMENT_INLINE = re.compile(RE_COMMENT_INLINE)
+RE_WHITESPACE = re.compile(RE_WHITESPACES)
 
 ############
 # KEYWORDS #
@@ -48,7 +48,7 @@ KEYWORDS = [RE_CLASS, RE_CONSTRUCTOR, RE_FUNCTION, RE_METHOD, RE_FIELD,
             RE_STATIC, RE_VAR, RE_INT, RE_CHAR, RE_BOOLEAN, RE_VOID,
             RE_TRUE, RE_FALSE, RE_NULL, RE_THIS, RE_LET, RE_DO, RE_IF,
             RE_ELSE, RE_WHILE, RE_RETURN]
-RE_KEYWORDS = r'|'.join(KEYWORDS)  # https://regex101.com/r/eVCEmK/2
+RE_KEYWORDS = r''.join(KEYWORDS)  # https://regex101.com/r/eVCEmK/2
 RE_KEYWORDS_COMPILED = re.compile(RE_KEYWORDS)
 
 ###########
@@ -124,9 +124,9 @@ def main():
     print(RE_INTEGER)
     print(RE_STRING)
     print(RE_IDENTIDIER)
-    TEST_STRING = 'if (x < 153) {let city = "Paris";}'
-    #m = RE_KEYWORDS_COMPILED.match(TEST_STRING)
-    #print(m)
+    TEST_STRING = '/** API comment */   /** API comment */if (x < 153) {let city = "Paris";}'
+    m = RE_WHITESPACE_AND_COMMENTS_COMPILED.match(TEST_STRING)
+    print(m)
 
 
 if __name__ == '__main__':
