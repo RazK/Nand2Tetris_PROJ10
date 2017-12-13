@@ -3,18 +3,21 @@
 #  input stream and breaks it into Jacklanguage tokens,
 # as specified by the Jack grammar.
 ##############################################################################
+from JackGrammar import *
+import re
 
 #############
 # CONSTANTS #
 #############
 EMPTY_STRING = ""
 NO_MORE_TOKENS_ERROR_MSG = "There are no more tokens."
-
-###########
-# IMPORTS #
-###########
-from JackGrammar import *
-import re
+TOKEN_TYPE_NONE = "none"
+TOKEN_TYPE_KEYWORD = "TOKEN_KEYWORD"
+TOKEN_TYPE_SYMBOL = "TOKEN_SYMBOL"
+TOKEN_TYPE_INTEGER = "TOKEN_INTEGER"
+TOKEN_TYPE_STRING = "TOKEN_STRING"
+TOKEN_TYPE_IDENTIFIER = "TOKEN_IDENTIFIER"
+TOKEN_NONE = "TOKEN_NONE"
 
 
 class JackTokenizer:
@@ -24,33 +27,22 @@ class JackTokenizer:
      :param in_file: The input jack file.
      """
         self.__in_file_name = in_file
-        self.__in_file_line = EMPTY_STRING  # Default value
-        self.__current_token = EMPTY_STRING  # Default value
-
-        self.__readFileToLine()
-        self.__removeSpacesAndComments()
+        self.__jack = EMPTY_STRING  # Default value
+        self.__current_token_type = TOKEN_TYPE_NONE  # Default value
+        self.__current_token = TOKEN_NONE
+        self.__readFileToString()
 
     ###################
     # PRIVATE METHODS #
     ###################
 
-    def __readFileToLine(self):
+    def __readFileToString(self):
         """
-        Reads the source file text into one line.
+        Reads the source file text into a string.
         """
         with open(self.__in_file_name) as file:
             for line in file:
-                line = re.sub(RE_END_OF_LINE_COMMENT, EMPTY_STRING, line)
-                self.__in_file_line += line
-
-    def __removeSpacesAndComments(self):
-        """
-        Removes spaces and comments from source file.
-        """
-        self.__in_file_line = re.sub(RE_WHITESPACES, EMPTY_STRING,
-                                     self.__in_file_line)
-        self.__in_file_line = re.sub(RE_IN_LINE_COMMENTS, EMPTY_STRING,
-                                     self.__in_file_line)
+                self.__jack += line
 
     ##################
     # PUBLIC METHODS #
@@ -61,7 +53,18 @@ class JackTokenizer:
         Do we have more tokens in the input?
         :return: True if there are more tokens.
         """
-        return not self.__in_file_line == EMPTY_STRING
+        return self.__jack != EMPTY_STRING
+
+    def __tokenize_match(self, match):
+        """
+        Set the given match as the current token and strip it off from the
+        jack code.
+        :param match: result of re.match() on some lexical element
+        """
+        # Extract matched token
+        self.__current_token = self.__jack[:match.end()]
+        # Strip it from the file
+        self.__jack = self.__jack[match.end():]
 
     def advance(self):
         """
@@ -69,16 +72,55 @@ class JackTokenizer:
         This method should only be called if hasMoreTokens() is true.
         Initially there is no current token.
         """
-        if self.hasMoreTokens():
-            pass
-        else:
-            raise ValueError(NO_MORE_TOKENS_ERROR_MSG)
+
+        # Remove Comments and Spaces
+        whitespace_or_comment = RE_WHITESPACE_AND_COMMENTS_COMPILED.match(
+            self.__jack)
+        if whitespace_or_comment:
+            self.__jack = self.__jack[whitespace_or_comment.endpos:]
+
+        if not self.hasMoreTokens():
+            # RazK: TODO: This is going to be a bug, handle what happens if
+            # the last part of the code is a comment.
+            return
+
+        # Match current token
+        keyword = RE_KEYWORDS_COMPILED.match(self.__jack)
+        if keyword:
+            self.__current_token_type = TOKEN_TYPE_KEYWORD
+            self.__tokenize_match(keyword)
+            return
+
+        symbol = RE_SYMBOLS_COMPILED.match(self.__jack)
+        if symbol:
+            self.__current_token_type = TOKEN_TYPE_SYMBOL
+            self.__tokenize_match(symbol)
+            return
+
+        integer = RE_INTEGER_COMPILED.match(self.__jack)
+        if integer:
+            self.__current_token_type = TOKEN_TYPE_INTEGER
+            self.__tokenize_match(integer)
+            return
+
+        string = RE_STRING_COMPILED.match(self.__jack)
+        if string:
+            self.__current_token_type = TOKEN_TYPE_STRING
+            self.__tokenize_match(string)
+            return
+
+        identifier = RE_IDENTIDIER_COMPILED.match(self.__jack)
+        if identifier:
+            self.__current_token_type = TOKEN_TYPE_IDENTIFIER
+            self.__tokenize_match(identifier)
+            return
 
     def tokenType(self):
         """
         Returns the type of the current token.
         :return: KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST
         """
+        return self.__current_token_type
 
     def keyWord(self):
         """
@@ -118,6 +160,10 @@ class JackTokenizer:
         """
         pass
 
+    def debugPring(self):
+        print("{} : {}".format(self.__current_token_type,
+                               self.__current_token))
+
 
 #################
 # TESTS and shit
@@ -127,8 +173,10 @@ def main():
     """
     Tests for the Tokenizer module
     """
-
-    tok = JackTokenizer("file.jack")
+    tok = JackTokenizer("testing/advance.jack")
+    while tok.hasMoreTokens():
+        tok.debugPring()
+        tok.advance()
 
 
 if __name__ == "__main__":
