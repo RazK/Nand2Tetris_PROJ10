@@ -8,10 +8,10 @@
 #   3.  Use the CompilationEngine to compile the input JackTokenizer into the
 #       output file.
 ###############################################################################
-
 import os
 import sys
-from JackTokenizer import JackTokenizer
+from JackTokenizer import *
+import xml.etree.cElementTree as ET
 
 SOURCE_EXTENSION = ".jack"
 OUTPUT_EXTENSION = ".xml"
@@ -64,19 +64,37 @@ def analyze(sources):
         outname = base + OUTPUT_EXTENSION
 
         # Open source for analyzing, output file for writing
-        with open(sourcename, 'r') as source, open (outname, 'w') as output:
+        with open(sourcename, 'r') as source:
             # Create a JackTokenizer from the Xxx.jack input file
             tokenizer = JackTokenizer(source)
+            root = ET.Element(TOKEN_ROOT)
 
             # Parse each command line in the source and translate
-            while (tokenizer.hasMoreCommands()):
+            while (tokenizer.hasMoreTokens()):
                 # Use the CompilationEngine to compile the input
                 # JackTokenizer into the output file
-                pass # TODO
                 tokenizer.advance()
+                token_type = tokenizer.tokenType()
+                if token_type == TOKEN_TYPE_KEYWORD:
+                    keyword = tokenizer.keyWord()
+                    ET.SubElement(root, TOKEN_TYPE_KEYWORD).text = keyword
+                elif token_type == TOKEN_TYPE_SYMBOL:
+                    symbol = tokenizer.symbol()
+                    ET.SubElement(root, TOKEN_TYPE_SYMBOL).text = symbol
+                elif token_type == TOKEN_TYPE_INTEGER:
+                    integer = tokenizer.intVal()
+                    ET.SubElement(root, TOKEN_TYPE_INTEGER).text = integer
+                elif token_type == TOKEN_TYPE_STRING:
+                    string = tokenizer.stringVal()
+                    ET.SubElement(root, TOKEN_TYPE_STRING).text = string
+                elif token_type == TOKEN_TYPE_IDENTIFIER:
+                    identifier = tokenizer.identifier()
+                    ET.SubElement(root, TOKEN_TYPE_IDENTIFIER).text = \
+                        identifier
 
-        # Flush output to file
-        output.flush()
+        # Write XML to file
+        tree = ET.ElementTree(root)
+        tree.write(outname)
 
 if (__name__ == "__main__"):
     if len(sys.argv) > 1:
