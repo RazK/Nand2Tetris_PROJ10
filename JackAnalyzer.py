@@ -46,6 +46,8 @@ def main(path):
     # Assemble all files
     analyze(sources)
 
+def addToken(parent, token, token_type):
+    ET.SubElement(parent, token_type).text = " {} ".format(token)
 
 def analyze(sources):
     """
@@ -77,20 +79,19 @@ def analyze(sources):
                 token_type = tokenizer.tokenType()
                 if token_type == TOKEN_TYPE_KEYWORD:
                     keyword = tokenizer.keyWord()
-                    ET.SubElement(root, TOKEN_TYPE_KEYWORD).text = keyword
+                    addToken(root, keyword, TOKEN_TYPE_KEYWORD)
                 elif token_type == TOKEN_TYPE_SYMBOL:
                     symbol = tokenizer.symbol()
-                    ET.SubElement(root, TOKEN_TYPE_SYMBOL).text = symbol
+                    addToken(root, symbol, TOKEN_TYPE_SYMBOL)
                 elif token_type == TOKEN_TYPE_INTEGER:
                     integer = tokenizer.intVal()
-                    ET.SubElement(root, TOKEN_TYPE_INTEGER).text = integer
+                    addToken(root, integer, TOKEN_TYPE_INTEGER)
                 elif token_type == TOKEN_TYPE_STRING:
                     string = tokenizer.stringVal()
-                    ET.SubElement(root, TOKEN_TYPE_STRING).text = string
+                    addToken(root, string, TOKEN_TYPE_STRING)
                 elif token_type == TOKEN_TYPE_IDENTIFIER:
                     identifier = tokenizer.identifier()
-                    ET.SubElement(root, TOKEN_TYPE_IDENTIFIER).text = \
-                        identifier
+                    addToken(root, identifier, TOKEN_TYPE_IDENTIFIER)
 
         # Write XML to file
         tree = ET.ElementTree(root)

@@ -66,7 +66,17 @@ class JackTokenizer:
         """
         # Extract matched token
         self.__current_token = self.__code[:match.end()]
-        # Strip it from the file
+        # Peal it from the file
+        self.__pealMatch(match)
+
+
+    def __pealMatch(self, match):
+        """
+        Peal the given match from the beginning of self.__code to the end of
+        the match.
+        ASSUMES MATCH IS AN ACTUAL MATCH!
+        :param match: an re match
+        """
         self.__code = self.__code[match.end():]
 
     def advance(self):
@@ -77,10 +87,22 @@ class JackTokenizer:
         """
 
         # Remove Comments and Spaces
-        whitespace_or_comment = RE_WHITESPACE_AND_COMMENTS_COMPILED.match(
-            self.__code)
-        if whitespace_or_comment:
-            self.__code = self.__code[whitespace_or_comment.endpos:]
+        do = True
+        while (do):
+            do = False
+            whitespace = RE_WHITESPACE_COMPILED.match(self.__code)
+            comment_inline = RE_COMMENT_INLINE_COMPILED.match(self.__code)
+            comment_endline = RE_COMMENT_END_OF_LINE_COMPILED.match(
+                self.__code)
+            if whitespace:
+                self.__pealMatch(whitespace)
+                do = True
+            elif comment_inline:
+                self.__pealMatch(comment_inline)
+                do = True
+            elif comment_endline:
+                self.__pealMatch(comment_endline)
+                do = True
 
         if not self.hasMoreTokens():
             # RazK: TODO: This is going to be a bug, handle what happens if
