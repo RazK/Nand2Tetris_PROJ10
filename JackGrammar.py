@@ -9,11 +9,10 @@ import re
 ############################
 RE_WHITESPACES = r'\s'  # https://regex101.com/r/evyXL2/1
 RE_COMMENT_END_OF_LINE = r'//.*'  # https://regex101.com/r/PbLBSc/1
-RE_COMMENT_INLINE = r'/\*.*?\*/'  # https://regex101.com/r/PbLBSc/2
-WHITESPACE_AND_COMMENTS = [RE_WHITESPACES, RE_COMMENT_END_OF_LINE,
-                           RE_COMMENT_INLINE]
-RE_WHITESPACE_AND_COMMENTS = r''.join(WHITESPACE_AND_COMMENTS)  # TODO: FIX
-RE_WHITESPACE_AND_COMMENTS_COMPILED = re.compile(RE_WHITESPACE_AND_COMMENTS)
+RE_COMMENT_INLINE = r'/\*[\s\S]*?\*/'  # https://regex101.com/r/PbLBSc/3
+RE_COMMENT_END_OF_LINE_COMPILED = re.compile(RE_COMMENT_END_OF_LINE)
+RE_COMMENT_INLINE_COMPILED = re.compile(RE_COMMENT_INLINE)
+RE_WHITESPACE_COMPILED = re.compile(RE_WHITESPACES)
 
 ############
 # KEYWORDS #
