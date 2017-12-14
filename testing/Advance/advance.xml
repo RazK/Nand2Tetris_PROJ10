@@ -1,0 +1,1 @@
+<tokens><keyword>if</keyword><symbol>(</symbol><identifier>x</identifier><symbol>&amp;lt</symbol><integerConstant>153</integerConstant><symbol>)</symbol><symbol>{</symbol><keyword>let</keyword><symbol>;</symbol><identifier>city</identifier><symbol>=</symbol><stringConstant>Par&amp;gtis</stringConstant><symbol>;</symbol><symbol>}</symbol></tokens>
