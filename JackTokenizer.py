@@ -108,8 +108,7 @@ class JackTokenizer:
         This method should only be called if hasMoreTokens() is true.
         Initially there is no current token.
         """
-        if not self.hasMoreTokens():
-            raise IOError(NO_MORE_TOKENS_ERROR_MSG)
+        self.__skipCommentsAndSpaces()
 
         # Match current token
         keyword = RE_KEYWORDS_COMPILED.match(self.__code)
@@ -160,7 +159,7 @@ class JackTokenizer:
         FALSE, NULL, THIS.
         """
         if self.__current_token not in KEYWORDS:
-            raise ValueError("Current token {} is not a keyword".format(
+            raise ValueError("Current token '{}' is not a keyword".format(
                 self.__current_token))
         return self.__current_token
 
@@ -170,7 +169,7 @@ class JackTokenizer:
         when tokenType() is SYMBOL.
         """
         if self.__current_token not in SYMBOLS:
-            raise ValueError("Current token {} is not a symbol".format(
+            raise ValueError("Current token '{}' is not a symbol".format(
                 self.__current_token))
         if self.__current_token in RE_SYMBOLS_SPECIAL_TRANSLATE:
             return RE_SYMBOLS_SPECIAL_TRANSLATE[self.__current_token]
@@ -182,7 +181,7 @@ class JackTokenizer:
         only when tokenType() is IDENTIFIER.
         """
         if not RE_IDENTIDIER_COMPILED.match(self.__current_token):
-            raise ValueError("Current token {} is not an identifier".format(
+            raise ValueError("Current token '{}' is not an identifier".format(
                 self.__current_token))
         return self.__current_token
 
@@ -192,7 +191,7 @@ class JackTokenizer:
         when tokenType() is INT_CONST.
         """
         if not RE_INTEGER_COMPILED.match(self.__current_token):
-            raise ValueError("Current token {} is not an integer".format(
+            raise ValueError("Current token '{}' is not an integer".format(
                 self.__current_token))
         return self.__current_token
 
@@ -202,7 +201,7 @@ class JackTokenizer:
         quotes. Should be called only when tokenType() is STRING_CONST.
         """
         if not RE_STRING_COMPILED.match(self.__current_token):
-            raise ValueError("Current token {} is not a string".format(
+            raise ValueError("Current token '{}' is not a string".format(
                 self.__current_token))
         # Replace special characters
         string = self.__current_token
@@ -212,10 +211,16 @@ class JackTokenizer:
         # Remove the opening and closing " characters.
         return string[1:-1]
 
+    def peek(self):
+        """
+        Returns the current token regardless of its type.
+        :return: current token
+        """
+        return self.__current_token
+
     def debugPring(self):
         print("{} : {}".format(self.__current_token_type,
                                self.__current_token))
-
 
 ##################
 # TESTS and shit #

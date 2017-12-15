@@ -12,8 +12,20 @@
 # this module generates executable VM code. In both cases, the parsing logic
 # and module API are exactly the same
 ##############################################################################
+from JackTokenizer import *
+
+XML_DELIM_TERMINAL = " "
+XML_INDENT_CHAR = "  "
+TOKEN_TYPE_CLASS_NAME = TOKEN_TYPE_IDENTIFIER
+TOKEN_TYPE_SUBROUTINE_NAME = TOKEN_TYPE_IDENTIFIER
+TOKEN_TYPE_VAR_NAME = TOKEN_TYPE_IDENTIFIER
+
 
 class CompilationEngine:
+    ###############
+    # CONSTRUCTOR #
+    ###############
+
     def __init__(self, in_file, out_file):
         """
         Creates a new compilation engine with the given input and output.
@@ -21,76 +33,417 @@ class CompilationEngine:
         :param in_file: The source Jack file.
         :param out_file: Compiled Jack file.
         """
-        pass
+        self.__in_file, self.__out_file = in_file, out_file
+        self.__tokenizer = JackTokenizer(in_file)
+        self.__stack = list()
+        self.__tokenizer.advance()
 
-    #################
-    # PUBLIC METHODS
-    #################
+    ###################
+    # PRIVATE METHODS #
+    ###################
+    def __writeTokenAndAdvance(self, token, token_type):
+        """
+        Writes the given token as an xml tag to the output.
+        :param token: token tag value
+        :param token_type: token tag type
+        """
+        # Build XML tag
+        tag = self.__getIndentedTag("<{0}>{1}{2}{1}</{0}>\n"
+                                    .format(token_type,
+                                            XML_DELIM_TERMINAL,
+                                            token))
+        self.__out_file.write(tag)
+        self.__tokenizer.advance()
+
+    def __getIndentedTag(self, tag):
+        """
+        Return the given tag with trailing tabs according to current
+        indentation level.
+        :param tag: tag to indent
+        :return: tag indented with trailing tabs.
+        """
+        return XML_INDENT_CHAR * len(self.__stack) + tag
+
+    def __openTag(self, tagName):
+        """
+        Open an XML tag with the given name.
+        All following tags will be written as inner tags until __closeTag()
+        is called.
+        :param tagName: name of the tag to open
+        """
+        tag = self.__getIndentedTag("<{}>\n".format(tagName))
+        self.__out_file.write(tag)
+        self.__stack.append(tagName)
+
+    def __closeTag(self):
+        """
+        Close the current open XML tag.
+        All following tags will be written as outer tags in the previous
+        indentation level.
+        """
+        tagName = self.__stack.pop()
+        tag = self.__getIndentedTag("</{}>\n".format(tagName))
+        self.__out_file.write(tag)
+
+    def __compileKeyWord(self):
+        """
+        Compile a keyword token
+        """
+        keyword = self.__tokenizer.keyWord()
+        self.__writeTokenAndAdvance(keyword, TOKEN_TYPE_KEYWORD)
+
+    def __compileSymbol(self):
+        """
+        Compile a symbol token
+        """
+        symbol = self.__tokenizer.symbol()
+        self.__writeTokenAndAdvance(symbol, TOKEN_TYPE_SYMBOL)
+
+    def __compileIdentifier(self):
+        """
+        Compile an identifier token
+        """
+        identifier = self.__tokenizer.identifier()
+        self.__writeTokenAndAdvance(identifier, TOKEN_TYPE_IDENTIFIER)
+
+    def __compileIntVal(self):
+        """
+        Compile an intVal token
+        """
+        int = self.__tokenizer.intVal()
+        self.__writeTokenAndAdvance(int, TOKEN_TYPE_INTEGER)
+
+    def __compileStringVal(self):
+        """
+        Compile a stringVal token
+        """
+        string = self.__tokenizer.stringVal()
+        self.__writeTokenAndAdvance(string, TOKEN_TYPE_STRING)
+
+    def __compileClassName(self):
+        """
+        Compiles a variable name.
+        """
+        self.__compileIdentifier()
+
+    def __compileSubroutineName(self):
+        """
+        Compiles a variable name.
+        """
+        self.__compileIdentifier()
+
+    def __compileSubroutineCall(self):
+        """
+        Compiles a subroutine call.
+        Syntax:
+        subroutineName '(' expressionList ')' | ( className | varName) '.'
+        subroutineName '(' expressionList ')'
+        """
+        self.__compileIdentifier()          # subroutineName | className |
+                                            # varName
+        if self.__tokenizer.peek() == RE_DOT:
+            self.__compileSymbol()          # '.'
+            self.__compileSubroutineName()  # subroutineName
+        self.__compileSymbol()              # '('
+        self.CompileExpressionList()        # expressionList
+        self.__compileSymbol()              # ')'
+
+    def __compileVarName(self):
+        """
+        Compiles a variable name.
+        """
+        self.__compileIdentifier()
+
+    def __compileType(self):
+        """
+        Compiles a type.
+        Syntax:
+        'int' | 'char' | 'boolean' | className
+        """
+        # 'int' | 'char' | 'boolean'
+        if self.__tokenizer.peek() in {RE_INT, RE_CHAR, RE_BOOLEAN}:
+            self.__compileKeyWord()
+        # className
+        else:
+            self.__compileClassName()
+
+    def __compileSubroutineBody(self):
+        """
+        Compiles a subroutine body.
+        Syntax:
+        '{' varDec* statements '}'
+        """
+        self.__openTag('subroutineBody')    # <subroutineBody>
+        self.__compileSymbol()              #   '{'
+
+        # varDec*
+        while self.__tokenizer.peek() == RE_VAR:
+            self.compileVarDec()            #   varDec*
+        self.compileStatements()            #   statements
+        self.__compileSymbol()              #   '}'
+        self.__closeTag()                   # </subroutineBody>
+
+    ##################
+    # PUBLIC METHODS #
+    ##################
 
     def compileClass(self):
         """
         Compiles a complete class.
+        Syntax:
+        'class' className '{' classVarDec* subroutineDec* '}'
         """
-        pass
+        self.__openTag('class')     # <class>
+        self.__compileKeyWord()     #   'class'
+        self.__compileClassName()   #   className
+        self.__compileSymbol()      #   '{'
+
+        # classVarDec*
+        while self.__tokenizer.peek() in {RE_STATIC, RE_FIELD}:
+            self.CompileClassVarDec()
+
+        # subroutineDec*
+        while self.__tokenizer.peek() in {RE_CONSTRUCTOR, RE_FUNCTION,
+                                          RE_METHOD}:
+            self.CompileSubroutine()
+
+        self.__compileSymbol()      #   '}'
+        self.__closeTag()           # </class>
 
     def CompileClassVarDec(self):
         """
         Compiles a static declaration or a field declaration.
+        Syntax:
+        ('static' | 'field') type varName (',' varName)* ';'
         """
-        pass
+        self.__openTag('classVarDec')   # <classVarDec>
+        self.__compileKeyWord()         #   ('static' | 'field')
+        self.__compileType()            #   type
+        self.__compileVarName()         #   varName
+
+        # (',' varName)
+        while self.__tokenizer.peek() == RE_COMMA:
+            self.__compileSymbol()      #   ','
+            self.__compileVarName()     #   varName
+
+        self.__compileSymbol()          #   ';'
+        self.__closeTag()               # </classVarDec>
 
     def CompileSubroutine(self):
         """
         Compiles a complete method, function, or constructor.
+        Syntax:
+        ('constructor' | 'function' | 'method') ('void' | type)
+        subroutineName '(' parameterList ')' subroutineBody
         """
-        pass
+        self.__openTag('subroutineDec') # <subroutineDec>
+        self.__compileKeyWord()         #   ('constructor' | 'function' |
+                                        #   'method')
+        if self.__tokenizer.peek() == RE_VOID:
+            self.__compileKeyWord()     #   'void'
+        else:
+            self.__compileType()        #   type
+        self.__compileSubroutineName()  #   soubroutineName
+        self.__compileSymbol()          #   '('
+        self.compileParameterList()     #   parameterList
+        self.__compileSymbol()          #   ')'
+        self.__compileSubroutineBody()  #   subroutineBody
+        self.__closeTag()               # </subroutineDec>
 
     def compileParameterList(self):
         """
         Compiles a (possibly empty) parameter list, not including the
         enclosing “()”.
+        Syntax:
+        ( (type varName) (',' type varName)*)?
         """
-        pass
+        self.__openTag('parameterList')    # <parameterList>
+        if self.__tokenizer.peek() != RE_BRACKETS_RIGHT:
+            self.__compileType()            #   type
+            self.__compileVarName()         #   varName
+            while self.__tokenizer.peek() == RE_COMMA:
+                self.__compileSymbol()      #   ','
+                self.__compileType()        #   type
+                self.__compileVarName()     #   varName
+        self.__closeTag()                   # </parametersList>
 
     def compileVarDec(self):
         """
         Compiles a var declaration.
+        Syntax:
+        'var' type varName (',' varName)* ';'
         """
-        pass
+        self.__openTag('varDec')    # <varDec>
+        self.__compileKeyWord()     #   'var'
+        self.__compileType()        #   type
+        self.__compileVarName()     #   varName
+        while self.__tokenizer.peek() == RE_COMMA:
+            self.__compileSymbol()  #   ','
+            self.__compileVarName() #   varName
+        self.__compileSymbol()      #   ';'
+        self.__closeTag()           # </varDec>
 
     def compileStatements(self):
         """
         Compiles a sequence of statements, not including the enclosing “{}”.
+        Syntax:
+        statement*
+        where statement is in:
+        letStatement | ifStatement | whileStatement | doStatement | returnStatement
         """
-        pass
+        self.__openTag('statements')    # <statements>
+        statement = self.__tokenizer.peek()
+        while statement in {RE_LET, RE_IF, RE_WHILE, RE_DO, RE_RETURN}:
+            if statement == RE_LET:
+                self.compileLet()
+            elif statement == RE_IF:
+                self.compileIf()
+            elif statement == RE_WHILE:
+                self.compileWhile()
+            elif statement == RE_DO:
+                self.compileDo()
+            elif statement == RE_RETURN:
+                self.compileReturn()
+            statement = self.__tokenizer.peek()
+        self.__closeTag()               # </statements>
 
     def compileDo(self):
         """
         Compiles a do statement.
+        Syntax:
+        'do' subroutineCall ';'
         """
-        pass
+        self.__openTag('doStatement')   # <doStatement>
+        self.__compileKeyWord()         #   'do'
+        self.__compileSubroutineCall()  #   subroutineCall
+        self.__compileSymbol()          #   ';'
+        self.__closeTag()               # </doStatement>
 
     def compileLet(self):
         """
         Compiles a let statement.
+        Syntax:
+        'let' varName ('[' expression ']')? '=' expression ';'
         """
-        pass
+        self.__openTag('letStatement')  # <letStatement>
+        self.__compileKeyWord()         #   'let'
+        self.__compileVarName()         #   varName
+        if self.__tokenizer.peek() == RE_BRACKETS_SQUARE_LEFT:
+            self.__compileSymbol()      #   '['
+            self.CompileExpression()    # expression
+            self.__compileSymbol()      #   ']'
+        self.__compileSymbol()          #   '='
+        self.CompileExpression()        # expression
+        self.__compileSymbol()          #   ';'
+        self.__closeTag()               # </letStatement>
 
     def compileWhile(self):
         """
         Compiles a while statement.
+        Syntax:
+        'while' '(' expression ')' '{' statements '}'
         """
-        pass
+        self.__openTag('whileStatement')    # <whileStatement>
+        self.__compileSymbol()              #   '('
+        self.CompileExpression()            #   expression
+        self.__compileSymbol()              #   ')'
+        self.__compileSymbol()              #   '{'
+        self.compileStatements()            #   statements
+        self.__compileSymbol()              #   '}'
+        self.__closeTag()                   # </whileStatement>
 
     def compileReturn(self):
         """
         Compiles a return statement.
+        Syntax:
+        'return' expression? ';'
         """
-        pass
+        self.__openTag('returnStatement')   # <returnStatement>
+        self.__compileKeyWord()             #   'return'
+        if self.__tokenizer.peek() != RE_SEMICOLON:
+            self.CompileExpression()        #   expression
+        self.__compileSymbol()              #   ';'
+        self.__closeTag()                   # </returnStatement>
 
     def compileIf(self):
         """
         Compiles an if statement, possibly with a trailing else clause.
+        Syntax:
+        'if' '(' expression ')' '{' statements '}' ( 'else' '{' statements
+        '}' )?
         """
-        pass
+        self.__openTag('ifStatement')   # <ifStatement>
+        self.__compileKeyWord()         #   'if'
+        self.__compileSymbol()          #   '('
+        self.CompileExpression()        #   expression
+        self.__compileSymbol()          #   ')'
+        self.__compileSymbol()          #   '{'
+        self.compileStatements()        #   statements
+        self.__compileSymbol()          #   '}'
+        if self.__tokenizer.peek() == RE_ELSE:
+            self.__compileKeyWord()     #   'else'
+            self.__compileSymbol()      #   '{'
+            self.compileStatements()    #   statements
+            self.__compileSymbol()      #   '}'
+        self.__closeTag()               # </ifStatement>
 
+    def CompileExpression(self):
+        """
+        Compiles an expression.
+        Syntax:
+        term (op term)*
+        """
+        self.__openTag('expression')    # <expression>
+        self.CompileTerm()              # term
+        while self.__tokenizer.peek() in {RE_PLUS, RE_BAR, RE_ASTERISK,
+                                          RE_SLASH, RE_AMPERSAND, RE_VBAR,
+                                          RE_LT, RE_GT, RE_EQ}:
+            self.__compileSymbol()      # op
+            self.CompileTerm()          # term
+        self.__closeTag()               # </expression>
+
+    def CompileTerm(self):
+        """
+        Compiles a term.
+        This routine is faced with a slight difficulty when trying to decide
+        between some of the alternative parsing rules.
+        Specifically, if the current token is an identifier, the routine
+        must distinguish between a variable, an array entry,
+        and a subroutine call. A single look-ahead token, which may be one
+        of “[“, “(“, or “.” suffices to distinguish between the three
+        possibilities. Any other token is not part of this term and should
+        not be advanced over.
+        Syntax:
+        integerConstant | stringConstant | keywordConstant | varName |
+        varName '[' expression ']' | subroutineCall | '(' expression ')' |
+        unaryOp term
+        """
+        self.__openTag('term')      # <term>
+        self.__compileIdentifier()  # TODO: Noy: Actual implementation
+        self.__closeTag()           # </term>
+
+    def CompileExpressionList(self):
+        """
+        Compiles a (possibly empty) commaseparated
+        list of expressions.
+        Syntax:
+        (expression (',' expression)* )?
+        """
+        self.__openTag('expressionList')    # <expressionList>
+        if self.__tokenizer.peek() != RE_BRACKETS_RIGHT:
+            self.CompileExpression()        #   expression
+            while self.__tokenizer.peek() == RE_COMMA:
+                self.__compileSymbol()      #   ','
+                self.CompileExpression()    #   expression
+        self.__closeTag()                   # </expressionList>
+
+def main():
+    with open("testing\ExpressionLessSquare\Square.jack", 'r') as infile, \
+            open("testing\ExpressionLessSquare\Square.test.xml", 'w') as \
+                    outfile:
+        cybermaster = CompilationEngine(infile, outfile)
+        cybermaster.compileClass()
+
+
+if __name__ == '__main__':
+    main()
