@@ -408,8 +408,8 @@ class CompilationEngine:
         This routine is faced with a slight difficulty when trying to decide
         between some of the alternative parsing rules.
         Specifically, if the current token is an identifier, the routine
-        must distinguish between a variable, an array entry,
-        and a subroutine call. A single look-ahead token, which may be one
+        must distinguish between a variable, an array entry, and a subroutine
+        call. A single look-ahead token, which may be one
         of “[“, “(“, or “.” suffices to distinguish between the three
         possibilities. Any other token is not part of this term and should
         not be advanced over.
@@ -418,9 +418,38 @@ class CompilationEngine:
         varName '[' expression ']' | subroutineCall | '(' expression ')' |
         unaryOp term
         """
-        self.__openTag('term')      # <term>
-        self.__compileIdentifier()  # TODO: Noy: Actual implementation
-        self.__closeTag()           # </term>
+        self.__openTag('term')                      # <term>
+        lookahead = self.__tokenizer.lookahead()
+        if lookahead == RE_BRACKETS_SQUARE_LEFT:
+            self.__compileVarName()                 #   varName
+            self.__compileSymbol()                  #   '['
+            self.CompileExpression()                #   expression
+            self.__compileSymbol()                  #   ']'
+        elif lookahead == RE_BRACKETS_LEFT:
+            self.__compileSubroutineCall()          #   subroutineCall
+        elif lookahead == RE_DOT:
+            self.__compileVarName()                 #   varName
+            self.__compileSymbol()                  #   '.'
+            self.__compileSubroutineCall()          #   subroutineCall
+        else:
+            if self.__tokenizer.tokenType() == TOKEN_TYPE_INTEGER:
+                self.__compileIntVal()              #   integerConstant
+            elif self.__tokenizer.tokenType() == TOKEN_TYPE_STRING:
+                self.__compileStringVal()           #   stringConstant
+            elif self.__tokenizer.tokenType() == TOKEN_TYPE_KEYWORD:
+                self.__compileKeyWord()             #   keywordConstant
+            elif self.__tokenizer.tokenType() == TOKEN_TYPE_IDENTIFIER:
+                self.__compileIdentifier()
+            elif self.__tokenizer.tokenType() == TOKEN_TYPE_STRING:
+                self.__compileStringVal()
+            elif self.__tokenizer.peek() in {RE_TILDA, RE_BAR}:
+                self.__compileSymbol()              #   unaryOp
+                self.CompileTerm()                  #   term
+            elif self.__tokenizer.peek() == RE_BRACKETS_LEFT:
+                self.__compileSymbol()              #   '('
+                self.CompileExpression()            #   expression
+                self.__compileSymbol()              #   ')'
+        self.__closeTag()                           # </term>
 
     def CompileExpressionList(self):
         """

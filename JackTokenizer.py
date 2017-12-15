@@ -28,9 +28,12 @@ class JackTokenizer:
      """
         self.__in_file = in_file
         self.__code = EMPTY_STRING  # Default value
-        self.__current_token_type = TOKEN_TYPE_NONE  # Default value
+        self.__next_token_type = TOKEN_TYPE_NONE
+        self.__next_token = TOKEN_NONE
+        self.__current_token_token_type = TOKEN_TYPE_NONE
         self.__current_token = TOKEN_NONE
         self.__readFileToString()
+        self.advance()
 
     ###################
     # PRIVATE METHODS #
@@ -45,7 +48,7 @@ class JackTokenizer:
         # Shtik for compensating the fact we don't handle the last token
         # in the file when iterating while hasMoreTokens().
         # Purposely planting a garbage last token which will not be read:
-        #self.__code += TOKEN_NONE
+        self.__code += TOKEN_NONE
 
     ##################
     # PUBLIC METHODS #
@@ -66,7 +69,7 @@ class JackTokenizer:
         :param match: result of re.match() on some lexical element
         """
         # Extract matched token
-        self.__current_token = self.__code[:match.end()]
+        self.__next_token = self.__code[:match.end()]
         # Peal it from the file
         self.__pealMatch(match)
 
@@ -110,45 +113,46 @@ class JackTokenizer:
         """
         self.__skipCommentsAndSpaces()
 
-        # Match current token
+        # Advance current to next token
+        self.__current_token = self.__next_token
+        self.__current_token_token_type = self.__next_token_type
+        # Match next token
         keyword = RE_KEYWORDS_COMPILED.match(self.__code)
         if keyword:
-            self.__current_token_type = TOKEN_TYPE_KEYWORD
+            self.__next_token_type = TOKEN_TYPE_KEYWORD
             self.__tokenize_match(keyword)
             return
 
         symbol = RE_SYMBOLS_COMPILED.match(self.__code)
         if symbol:
-            self.__current_token_type = TOKEN_TYPE_SYMBOL
+            self.__next_token_type = TOKEN_TYPE_SYMBOL
             self.__tokenize_match(symbol)
             return
 
         integer = RE_INTEGER_COMPILED.match(self.__code)
         if integer:
-            self.__current_token_type = TOKEN_TYPE_INTEGER
+            self.__next_token_type = TOKEN_TYPE_INTEGER
             self.__tokenize_match(integer)
             return
 
         string = RE_STRING_COMPILED.match(self.__code)
         if string:
-            self.__current_token_type = TOKEN_TYPE_STRING
+            self.__next_token_type = TOKEN_TYPE_STRING
             self.__tokenize_match(string)
             return
 
         identifier = RE_IDENTIDIER_COMPILED.match(self.__code)
         if identifier:
-            self.__current_token_type = TOKEN_TYPE_IDENTIFIER
+            self.__next_token_type = TOKEN_TYPE_IDENTIFIER
             self.__tokenize_match(identifier)
             return
-
-        # No match?
 
     def tokenType(self):
         """
         Returns the type of the current token.
         :return: KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST
         """
-        return self.__current_token_type
+        return self.__current_token_token_type
 
     def keyWord(self):
         """
@@ -218,8 +222,15 @@ class JackTokenizer:
         """
         return self.__current_token
 
+    def lookahead(self):
+        """
+        Returns the next token regardless of its type.
+        :return: next token
+        """
+        return self.__next_token
+
     def debugPring(self):
-        print("{} : {}".format(self.__current_token_type,
+        print("{} : {}".format(self.__next_token_type,
                                self.__current_token))
 
 ##################
