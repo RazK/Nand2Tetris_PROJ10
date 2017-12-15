@@ -17,6 +17,11 @@ SOURCE_EXTENSION = ".jack"
 OUTPUT_EXTENSION = ".xml"
 DEFAULT_SOURCE_FILE = "..\\Square.jack"
 
+XML_DELIM_TERMINAL = " "
+XML_DELIM_NON_TERMINAL = "\n"
+TOKEN_ROOT_START = "<tokens>\n"
+TOKEN_ROOT_END = "</tokens>\n"
+
 def main(path):
     """
     Translate the .jack source file (or files) in the given path into a token
@@ -46,8 +51,10 @@ def main(path):
     # Assemble all files
     analyze(sources)
 
-def addToken(parent, token, token_type):
-    ET.SubElement(parent, token_type).text = " {} ".format(token)
+def addToken(outfile, token, token_type, isTerminal=True):
+    delimiter = XML_DELIM_TERMINAL if isTerminal else XML_DELIM_NON_TERMINAL
+    tag = "<{0}>{1}{2}{1}</{0}>\n".format(token_type, delimiter, token)
+    outfile.write(tag)
 
 def analyze(sources):
     """
@@ -66,10 +73,10 @@ def analyze(sources):
         outname = base + OUTPUT_EXTENSION
 
         # Open source for analyzing, output file for writing
-        with open(sourcename, 'r') as source:
+        with open(sourcename, 'r') as source, open(outname, 'w') as output:
             # Create a JackTokenizer from the Xxx.jack input file
             tokenizer = JackTokenizer(source)
-            root = ET.Element(TOKEN_ROOT)
+            output.write(TOKEN_ROOT_START)
 
             # Parse each command line in the source and translate
             while (tokenizer.hasMoreTokens()):
@@ -79,23 +86,20 @@ def analyze(sources):
                 token_type = tokenizer.tokenType()
                 if token_type == TOKEN_TYPE_KEYWORD:
                     keyword = tokenizer.keyWord()
-                    addToken(root, keyword, TOKEN_TYPE_KEYWORD)
+                    addToken(output, keyword, TOKEN_TYPE_KEYWORD)
                 elif token_type == TOKEN_TYPE_SYMBOL:
                     symbol = tokenizer.symbol()
-                    addToken(root, symbol, TOKEN_TYPE_SYMBOL)
+                    addToken(output, symbol, TOKEN_TYPE_SYMBOL)
                 elif token_type == TOKEN_TYPE_INTEGER:
                     integer = tokenizer.intVal()
-                    addToken(root, integer, TOKEN_TYPE_INTEGER)
+                    addToken(output, integer, TOKEN_TYPE_INTEGER)
                 elif token_type == TOKEN_TYPE_STRING:
                     string = tokenizer.stringVal()
-                    addToken(root, string, TOKEN_TYPE_STRING)
+                    addToken(output, string, TOKEN_TYPE_STRING)
                 elif token_type == TOKEN_TYPE_IDENTIFIER:
                     identifier = tokenizer.identifier()
-                    addToken(root, identifier, TOKEN_TYPE_IDENTIFIER)
-
-        # Write XML to file
-        tree = ET.ElementTree(root)
-        tree.write(outname)
+                    addToken(output, identifier, TOKEN_TYPE_IDENTIFIER)
+            output.write(TOKEN_ROOT_END)
 
 if (__name__ == "__main__"):
     if len(sys.argv) > 1:

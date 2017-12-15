@@ -56,6 +56,7 @@ class JackTokenizer:
         Do we have more tokens in the input?
         :return: True if there are more tokens.
         """
+        self.__skipCommentsAndSpaces()
         return self.__code != EMPTY_STRING
 
     def __tokenize_match(self, match):
@@ -79,13 +80,10 @@ class JackTokenizer:
         """
         self.__code = self.__code[match.end():]
 
-    def advance(self):
+    def __skipCommentsAndSpaces(self):
         """
-        Gets the next token from the input and makes it the current token.
-        This method should only be called if hasMoreTokens() is true.
-        Initially there is no current token.
+        Skips all the comments and spaces at the beginning of the code.
         """
-
         # Remove Comments and Spaces
         do = True
         while (do):
@@ -104,10 +102,14 @@ class JackTokenizer:
                 self.__pealMatch(comment_endline)
                 do = True
 
+    def advance(self):
+        """
+        Gets the next token from the input and makes it the current token.
+        This method should only be called if hasMoreTokens() is true.
+        Initially there is no current token.
+        """
         if not self.hasMoreTokens():
-            # RazK: TODO: This is going to be a bug, handle what happens if
-            # the last part of the code is a comment.
-            return
+            raise IOError(NO_MORE_TOKENS_ERROR_MSG)
 
         # Match current token
         keyword = RE_KEYWORDS_COMPILED.match(self.__code)
@@ -215,9 +217,9 @@ class JackTokenizer:
                                self.__current_token))
 
 
-#################
-# TESTS and shit
-#################
+##################
+# TESTS and shit #
+##################
 
 def main():
     """
