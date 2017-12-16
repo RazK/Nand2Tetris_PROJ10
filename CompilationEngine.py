@@ -344,6 +344,7 @@ class CompilationEngine:
         'while' '(' expression ')' '{' statements '}'
         """
         self.__openTag('whileStatement')    # <whileStatement>
+        self.__compileKeyWord()             #   'while'
         self.__compileSymbol()              #   '('
         self.CompileExpression()            #   expression
         self.__compileSymbol()              #   ')'
@@ -471,8 +472,8 @@ class CompilationEngine:
         self.__closeTag()                   # </expressionList>
 
 def main():
-    with open("testing\Square\Square.jack", 'r') as infile, \
-            open("testing\Square\Square.test.xml", 'w') as \
+    with open("testing\ArrayTest\Main.jack", 'r') as infile, \
+            open("testing\ArrayTest\Main.test.xml", 'w') as \
                     outfile:
         cybermaster = CompilationEngine(infile, outfile)
         cybermaster.compileClass()
