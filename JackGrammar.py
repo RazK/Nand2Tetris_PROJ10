@@ -120,7 +120,7 @@ def main():
     """
     Tests for JackGrammar module.
     """
-    print(RE_WHITESPACE_AND_COMMENTS)
+   # print(RE_WHITESPACE_AND_COMMENTS)
     print(RE_KEYWORDS)
     print(RE_SYMBOLS)
     print(RE_INTEGER)
