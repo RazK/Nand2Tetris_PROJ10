@@ -420,7 +420,11 @@ class CompilationEngine:
         """
         self.__openTag('term')                      # <term>
         lookahead = self.__tokenizer.lookahead()
-        if lookahead == RE_BRACKETS_SQUARE_LEFT:
+        if self.__tokenizer.peek() == RE_BRACKETS_LEFT:
+            self.__compileSymbol()                  #   '('
+            self.CompileExpression()                #   expression
+            self.__compileSymbol()                  #   ')'
+        elif lookahead == RE_BRACKETS_SQUARE_LEFT:
             self.__compileVarName()                 #   varName
             self.__compileSymbol()                  #   '['
             self.CompileExpression()                #   expression
@@ -467,8 +471,8 @@ class CompilationEngine:
         self.__closeTag()                   # </expressionList>
 
 def main():
-    with open("testing\ExpressionLessSquare\Square.jack", 'r') as infile, \
-            open("testing\ExpressionLessSquare\Square.test.xml", 'w') as \
+    with open("testing\Square\Square.jack", 'r') as infile, \
+            open("testing\Square\Square.test.xml", 'w') as \
                     outfile:
         cybermaster = CompilationEngine(infile, outfile)
         cybermaster.compileClass()
