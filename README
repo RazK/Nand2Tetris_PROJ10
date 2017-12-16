@@ -4,31 +4,28 @@ Noy Sternlicht  ID 205765365, noy.sternlicht@mail.huji.ac.il
 Raz Karl, 	    ID 311143127, raz.karl@mail.huji.ac.il
 ===============================================================================
 
-                       	Project 7 - Virtual Machine
-                        ---------------------------
+                       	Project 10 - Compiler
+                       -----------------------
 
 Submitted Files
 ---------------
 README 				- This file.
 
-CodeWriter - This Class translates VM language commands into assembly language.
+JackAnalyzer - Gets a directory path or a .jack file's path from the command
+line:
+* In the case the input is a directory path - produces for all of the .jack
+  files in the directory matching XML files.
+* Otherwise: Produces an XML file for the given .jack file.
 
-Parser -  Handles the parsing of a single .vm file, and encapsulates access to
-the input code. It reads VM commands, parses them, and provides convenient
-access to their components. In addition, it removes all white space and
-comments.
+JackGrammar - Contains all of the regex we used in order to build the
+tokenizer.
 
-Utils - This class consists of constants and dictionaries for the usage of
-other classes.
+JackTokenizer - This class takes apart the .jack file into tokens.
 
-Main - Main gets a directory path or a .vm file's path from the command line:
-* In the case the input is a directory path - Main translate all of the .vm
-  files in the directory into one Assembly file.
-* Otherwise: It translate the given file into an Assembly file.
+CompilationEngine - Gets input from JackTokenizer and writes the parsed
+structure of the Jack code into an XML file.
 
 Summary
 -------
-This is a virtual machine -
-An abstract computer that serves a part in the translation of high level
-programing language into a machine language. The high level language is
-translated into VM language and the VM language is translated into Assembly.
+This is the compiler of the Hack computer:
+The compiler translates Jack code into the target language: VM language.
