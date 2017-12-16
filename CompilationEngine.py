@@ -425,6 +425,9 @@ class CompilationEngine:
             self.__compileSymbol()                  #   '('
             self.CompileExpression()                #   expression
             self.__compileSymbol()                  #   ')'
+        elif self.__tokenizer.peek() in {RE_TILDA, RE_BAR}:
+            self.__compileSymbol()              #   unaryOp
+            self.CompileTerm()                  #   term
         elif lookahead == RE_BRACKETS_SQUARE_LEFT:
             self.__compileVarName()                 #   varName
             self.__compileSymbol()                  #   '['
@@ -447,9 +450,6 @@ class CompilationEngine:
                 self.__compileIdentifier()
             elif self.__tokenizer.tokenType() == TOKEN_TYPE_STRING:
                 self.__compileStringVal()
-            elif self.__tokenizer.peek() in {RE_TILDA, RE_BAR}:
-                self.__compileSymbol()              #   unaryOp
-                self.CompileTerm()                  #   term
             elif self.__tokenizer.peek() == RE_BRACKETS_LEFT:
                 self.__compileSymbol()              #   '('
                 self.CompileExpression()            #   expression
@@ -472,8 +472,8 @@ class CompilationEngine:
         self.__closeTag()                   # </expressionList>
 
 def main():
-    with open("testing\ArrayTest\Main.jack", 'r') as infile, \
-            open("testing\ArrayTest\Main.test.xml", 'w') as \
+    with open("testing\Square\SquareGame.jack", 'r') as infile, \
+            open("testing\Square\SquareGame.test.xml", 'w') as \
                     outfile:
         cybermaster = CompilationEngine(infile, outfile)
         cybermaster.compileClass()
