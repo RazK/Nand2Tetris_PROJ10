@@ -426,8 +426,8 @@ class CompilationEngine:
             self.CompileExpression()                #   expression
             self.__compileSymbol()                  #   ')'
         elif self.__tokenizer.peek() in {RE_TILDA, RE_BAR}:
-            self.__compileSymbol()              #   unaryOp
-            self.CompileTerm()                  #   term
+            self.__compileSymbol()                  #   unaryOp
+            self.CompileTerm()                      #   term
         elif lookahead == RE_BRACKETS_SQUARE_LEFT:
             self.__compileVarName()                 #   varName
             self.__compileSymbol()                  #   '['
