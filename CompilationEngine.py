@@ -253,7 +253,7 @@ class CompilationEngine:
     def compileParameterList(self):
         """
         Compiles a (possibly empty) parameter list, not including the
-        enclosing “()”.
+        enclosing "()".
         Syntax:
         ( (type varName) (',' type varName)*)?
         """
@@ -285,7 +285,7 @@ class CompilationEngine:
 
     def compileStatements(self):
         """
-        Compiles a sequence of statements, not including the enclosing “{}”.
+        Compiles a sequence of statements, not including the enclosing "{}".
         Syntax:
         statement*
         where statement is in:
@@ -411,7 +411,7 @@ class CompilationEngine:
         Specifically, if the current token is an identifier, the routine
         must distinguish between a variable, an array entry, and a subroutine
         call. A single look-ahead token, which may be one
-        of “[“, “(“, or “.” suffices to distinguish between the three
+        of "[", "(", or "." suffices to distinguish between the three
         possibilities. Any other token is not part of this term and should
         not be advanced over.
         Syntax:
@@ -426,8 +426,8 @@ class CompilationEngine:
             self.CompileExpression()                #   expression
             self.__compileSymbol()                  #   ')'
         elif self.__tokenizer.peek() in {RE_TILDA, RE_BAR}:
-            self.__compileSymbol()                  #   unaryOp
-            self.CompileTerm()                      #   term
+            self.__compileSymbol()              #   unaryOp
+            self.CompileTerm()                  #   term
         elif lookahead == RE_BRACKETS_SQUARE_LEFT:
             self.__compileVarName()                 #   varName
             self.__compileSymbol()                  #   '['
