@@ -211,6 +211,7 @@ class CompilationEngine:
         # varDec*
         while self.__tokenizer.peek() == RE_VAR:
             self.compileVarDec()            #   varDec*
+            self.__vmWriter.writePush(SEGMENT_CONSTANT, 0)
         self.compileStatements()            #   statements
         self.__compileSymbol()              #   '}'
         self.__closeTag()                   # </subroutineBody>
@@ -277,9 +278,9 @@ class CompilationEngine:
         self.__compileKeyWord()                 #   ('constructor' | 'function' |
                                                 #   'method')
         if self.__tokenizer.peek() == RE_VOID:
-            void = self.__compileKeyWord()      #   'void'
+            type = self.__compileKeyWord()      #   'void'
         else:
-            self.__compileType()                #   type
+            type = self.__compileType()                #   type
         name = self.__compileSubroutineName()   #   soubroutineName
         self.__vmWriter.writeFunction(name, 0)
         self.__compileSymbol()                  #   '('
@@ -288,7 +289,7 @@ class CompilationEngine:
         self.__compileSubroutineBody()          #   subroutineBody
 
         # Compile VM
-        self.__vmWriter.writeReturn(void)
+        self.__vmWriter.writeReturn(type)
 
         self.__closeTag()                       # </subroutineDec>
 

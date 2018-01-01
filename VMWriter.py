@@ -3,6 +3,7 @@
 # It encapsulates the VM command syntax.
 ############################################################
 import VMGrammar as vg
+from JackGrammar import *
 
 ##########################
 # CONSTANTS - VM GRAMMAR #
@@ -130,7 +131,7 @@ class VMWriter:
         self.__output.write(
             FUNCTION_DEC + SPACE + funcname + SPACE + str(n_locals) + NEWLINE)
 
-    def writeReturn(self, void=None):
+    def writeReturn(self, void=RE_VOID):
         """
         Writes a VM return command.
         """
