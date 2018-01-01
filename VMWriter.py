@@ -7,7 +7,6 @@ import VMGrammar as vg
 ##########################
 # CONSTANTS - VM GRAMMAR #
 ##########################
-NEWLINE = "\n"
 
 # COMMANDS:
 RETURN = "return"
@@ -19,6 +18,10 @@ IF_GOTO = "if-goto"
 CALL = "call"
 FUNCTION_DEC = "function"
 
+# CONSTANT VM COMMANDS
+POP_RETURN = "pop temp 0"
+RETURN_VOID = "push constant 0"
+
 # SEGMENTS
 SEGMENT_CONSTANT = "constant"
 
@@ -27,6 +30,7 @@ POP_TO_CONST_MSG = "Pop to constant segment is forbidden"
 
 # MORE
 SPACE = " "
+NEWLINE = "\n"
 
 
 #############
@@ -114,6 +118,7 @@ class VMWriter:
         :param n_args: The number of arguments of the called function.
         """
         self.__output.write(CALL + SPACE + name + SPACE + str(n_args) + NEWLINE)
+        self.__output.write(POP_RETURN + NEWLINE)
 
     def writeFunction(self, name, n_locals):
         """
@@ -125,10 +130,12 @@ class VMWriter:
         self.__output.write(
             FUNCTION_DEC + SPACE + funcname + SPACE + str(n_locals) + NEWLINE)
 
-    def writeReturn(self):
+    def writeReturn(self, void=None):
         """
         Writes a VM return command.
         """
+        if (void != None):
+            self.__output.write(RETURN_VOID + NEWLINE)
         self.__output.write(RETURN + NEWLINE)
 
     def writeSymbol(self, symbol):

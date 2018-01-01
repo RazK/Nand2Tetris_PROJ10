@@ -170,8 +170,8 @@ class CompilationEngine:
             name = self.__symbolTable.typeOf(name)
 
         if self.__tokenizer.peek() == RE_DOT:
-            name += self.__compileSymbol()                  # '.'
-            name += self.__compileSubroutineName()   # subroutineName
+            name += self.__compileSymbol()          # '.'
+            name += self.__compileSubroutineName()  # subroutineName
         self.__compileSymbol()                      # '('
         exp_count = self.CompileExpressionList()          # expressionList
         self.__compileSymbol()                      # ')'
@@ -277,7 +277,7 @@ class CompilationEngine:
         self.__compileKeyWord()                 #   ('constructor' | 'function' |
                                                 #   'method')
         if self.__tokenizer.peek() == RE_VOID:
-            self.__compileKeyWord()             #   'void'
+            void = self.__compileKeyWord()      #   'void'
         else:
             self.__compileType()                #   type
         name = self.__compileSubroutineName()   #   soubroutineName
@@ -286,6 +286,10 @@ class CompilationEngine:
         self.compileParameterList()             #   parameterList
         self.__compileSymbol()                  #   ')'
         self.__compileSubroutineBody()          #   subroutineBody
+
+        # Compile VM
+        self.__vmWriter.writeReturn(void)
+
         self.__closeTag()                       # </subroutineDec>
 
     def compileParameterList(self):
@@ -409,9 +413,6 @@ class CompilationEngine:
         self.__compileSymbol()              #   ';'
         self.__closeTag()                   # </returnStatement>
 
-        # Compile VM
-        self.__vmWriter.writeReturn()
-
     def compileIf(self):
         """
         Compiles an if statement, possibly with a trailing else clause.
@@ -509,7 +510,7 @@ class CompilationEngine:
         Syntax:
         (expression (',' expression)* )?
         """
-        exp_count = 1
+        exp_count = 0
         self.__openTag('expressionList')            # <expressionList>
         if self.__tokenizer.peek() != RE_BRACKETS_RIGHT:
             self.CompileExpression()
