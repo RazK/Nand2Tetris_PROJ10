@@ -13,6 +13,8 @@
 # and module API are exactly the same
 ##############################################################################
 from JackTokenizer import *
+from SymbolTable import *
+from VMWriter import *
 
 XML_DELIM_TERMINAL = " "
 XML_INDENT_CHAR = "  "
@@ -26,15 +28,19 @@ class CompilationEngine:
     # CONSTRUCTOR #
     ###############
 
-    def __init__(self, in_file, out_file):
+    def __init__(self, in_filename, in_file, out_xml, out_vm):
         """
         Creates a new compilation engine with the given input and output.
         The next routine called must be compileClass().
-        :param in_file: The source Jack file.
-        :param out_file: Compiled Jack file.
+        :param in_file: Open source Jack file.
+        :param out_xml: Open XML file.
+        :param out_vm: Open VM file.
         """
-        self.__in_file, self.__out_file = in_file, out_file
+        self.__in_filename = in_filename
+        self.__in_file, self.__out_xml = in_file, out_xml
         self.__tokenizer = JackTokenizer(in_file)
+        self.__symbolTable = SymbolTable()
+        self.__vmWriter = VMWriter(in_filename, out_vm)
         self.__stack = list()
         self.__tokenizer.advance()
 
@@ -52,7 +58,7 @@ class CompilationEngine:
                                     .format(token_type,
                                             XML_DELIM_TERMINAL,
                                             token))
-        self.__out_file.write(tag)
+        self.__out_xml.write(tag)
         self.__tokenizer.advance()
 
     def __getIndentedTag(self, tag):
@@ -72,7 +78,7 @@ class CompilationEngine:
         :param tagName: name of the tag to open
         """
         tag = self.__getIndentedTag("<{}>\n".format(tagName))
-        self.__out_file.write(tag)
+        self.__out_xml.write(tag)
         self.__stack.append(tagName)
 
     def __closeTag(self):
@@ -83,7 +89,7 @@ class CompilationEngine:
         """
         tagName = self.__stack.pop()
         tag = self.__getIndentedTag("</{}>\n".format(tagName))
-        self.__out_file.write(tag)
+        self.__out_xml.write(tag)
 
     def __compileKeyWord(self):
         """
@@ -91,6 +97,7 @@ class CompilationEngine:
         """
         keyword = self.__tokenizer.keyWord()
         self.__writeTokenAndAdvance(keyword, TOKEN_TYPE_KEYWORD)
+        return keyword
 
     def __compileSymbol(self):
         """
@@ -98,20 +105,30 @@ class CompilationEngine:
         """
         symbol = self.__tokenizer.symbol()
         self.__writeTokenAndAdvance(symbol, TOKEN_TYPE_SYMBOL)
+        return symbol
 
-    def __compileIdentifier(self):
+    def __compileIdentifier(self, kind=KIND_NONE):
         """
         Compile an identifier token
         """
         identifier = self.__tokenizer.identifier()
         self.__writeTokenAndAdvance(identifier, TOKEN_TYPE_IDENTIFIER)
+        segment = self.__symbolTable.kindOf(identifier)
+        # Compile only if the identifier was defined
+        # (unlike class name of subroutine name)
+        if segment != KIND_NONE: # identifier was defined
+            index = self.__symbolTable.indexOf(identifier)
+            self.__vmWriter.writePush(segment, index)
+        return identifier
 
     def __compileIntVal(self):
         """
         Compile an intVal token
         """
-        int = self.__tokenizer.intVal()
-        self.__writeTokenAndAdvance(int, TOKEN_TYPE_INTEGER)
+        intval = self.__tokenizer.intVal()
+        self.__writeTokenAndAdvance(intval, TOKEN_TYPE_INTEGER)
+        self.__vmWriter.writePush(SEGMENT_CONSTANT, intval)
+        return intval
 
     def __compileStringVal(self):
         """
@@ -119,18 +136,22 @@ class CompilationEngine:
         """
         string = self.__tokenizer.stringVal()
         self.__writeTokenAndAdvance(string, TOKEN_TYPE_STRING)
+        # RazK: TODO: Don't escape the '\' character! resolve somehow
+        for char in string:
+            self.__vmWriter.writePush(SEGMENT_CONSTANT, ord(char))
+        return string
 
     def __compileClassName(self):
         """
         Compiles a variable name.
         """
-        self.__compileIdentifier()
+        return self.__compileIdentifier()
 
     def __compileSubroutineName(self):
         """
         Compiles a variable name.
         """
-        self.__compileIdentifier()
+        return self.__compileIdentifier()
 
     def __compileSubroutineCall(self):
         """
@@ -139,14 +160,24 @@ class CompilationEngine:
         subroutineName '(' expressionList ')' | ( className | varName) '.'
         subroutineName '(' expressionList ')'
         """
-        self.__compileIdentifier()          # subroutineName | className |
-                                            # varName
+        # Compile XML
+        name = self.__compileIdentifier()           # subroutineName |
+                                                    # className | varName
+        # Call of registered object method?
+        kind = self.__symbolTable.kindOf(name)
+        if (kind != KIND_NONE):
+            # Use class name instead of object name
+            name = self.__symbolTable.typeOf(name)
+
         if self.__tokenizer.peek() == RE_DOT:
-            self.__compileSymbol()          # '.'
-            self.__compileSubroutineName()  # subroutineName
-        self.__compileSymbol()              # '('
-        self.CompileExpressionList()        # expressionList
-        self.__compileSymbol()              # ')'
+            name += self.__compileSymbol()                  # '.'
+            name += self.__compileSubroutineName()   # subroutineName
+        self.__compileSymbol()                      # '('
+        exp_count = self.CompileExpressionList()          # expressionList
+        self.__compileSymbol()                      # ')'
+
+        # Compile VM
+        self.__vmWriter.writeCall(name, exp_count)
 
     def __compileVarName(self):
         """
@@ -162,10 +193,11 @@ class CompilationEngine:
         """
         # 'int' | 'char' | 'boolean'
         if self.__tokenizer.peek() in {RE_INT, RE_CHAR, RE_BOOLEAN}:
-            self.__compileKeyWord()
+            type = self.__compileKeyWord()
         # className
         else:
-            self.__compileClassName()
+            type = self.__compileClassName()
+        return type
 
     def __compileSubroutineBody(self):
         """
@@ -216,18 +248,19 @@ class CompilationEngine:
         Syntax:
         ('static' | 'field') type varName (',' varName)* ';'
         """
-        self.__openTag('classVarDec')   # <classVarDec>
-        self.__compileKeyWord()         #   ('static' | 'field')
-        self.__compileType()            #   type
-        self.__compileVarName()         #   varName
-
+        self.__openTag('classVarDec')       # <classVarDec>
+        kind = self.__compileKeyWord()      #   ('static' | 'field')
+        type = self.__compileType()         #   type
+        name = self.__compileVarName()      #   varName
+        self.__symbolTable.define(name, type, kind)
         # (',' varName)
         while self.__tokenizer.peek() == RE_COMMA:
-            self.__compileSymbol()      #   ','
-            self.__compileVarName()     #   varName
+            self.__compileSymbol()          #   ','
+            name = self.__compileVarName()  #   varName
+            self.__symbolTable.define(name, type, kind)
 
-        self.__compileSymbol()          #   ';'
-        self.__closeTag()               # </classVarDec>
+        self.__compileSymbol()              #   ';'
+        self.__closeTag()                   # </classVarDec>
 
     def CompileSubroutine(self):
         """
@@ -236,19 +269,24 @@ class CompilationEngine:
         ('constructor' | 'function' | 'method') ('void' | type)
         subroutineName '(' parameterList ')' subroutineBody
         """
-        self.__openTag('subroutineDec') # <subroutineDec>
-        self.__compileKeyWord()         #   ('constructor' | 'function' |
-                                        #   'method')
+        # Start subroutine in symbol table
+        self.__symbolTable.startSubroutine()
+
+        # Compile XML
+        self.__openTag('subroutineDec')         # <subroutineDec>
+        self.__compileKeyWord()                 #   ('constructor' | 'function' |
+                                                #   'method')
         if self.__tokenizer.peek() == RE_VOID:
-            self.__compileKeyWord()     #   'void'
+            self.__compileKeyWord()             #   'void'
         else:
-            self.__compileType()        #   type
-        self.__compileSubroutineName()  #   soubroutineName
-        self.__compileSymbol()          #   '('
-        self.compileParameterList()     #   parameterList
-        self.__compileSymbol()          #   ')'
-        self.__compileSubroutineBody()  #   subroutineBody
-        self.__closeTag()               # </subroutineDec>
+            self.__compileType()                #   type
+        name = self.__compileSubroutineName()   #   soubroutineName
+        self.__vmWriter.writeFunction(name, 0)
+        self.__compileSymbol()                  #   '('
+        self.compileParameterList()             #   parameterList
+        self.__compileSymbol()                  #   ')'
+        self.__compileSubroutineBody()          #   subroutineBody
+        self.__closeTag()                       # </subroutineDec>
 
     def compileParameterList(self):
         """
@@ -257,15 +295,17 @@ class CompilationEngine:
         Syntax:
         ( (type varName) (',' type varName)*)?
         """
-        self.__openTag('parameterList')    # <parameterList>
+        self.__openTag('parameterList')         # <parameterList>
         if self.__tokenizer.peek() != RE_BRACKETS_RIGHT:
-            self.__compileType()            #   type
-            self.__compileVarName()         #   varName
+            type = self.__compileType()         #   type
+            name = self.__compileVarName()      #   varName
+            self.__symbolTable.define(name, type, KIND_ARG)
             while self.__tokenizer.peek() == RE_COMMA:
-                self.__compileSymbol()      #   ','
-                self.__compileType()        #   type
-                self.__compileVarName()     #   varName
-        self.__closeTag()                   # </parametersList>
+                self.__compileSymbol()          #   ','
+                type = self.__compileType()     #   type
+                name = self.__compileVarName()  #   varName
+                self.__symbolTable.define(name, type, KIND_ARG)
+        self.__closeTag()                       # </parametersList>
 
     def compileVarDec(self):
         """
@@ -273,15 +313,17 @@ class CompilationEngine:
         Syntax:
         'var' type varName (',' varName)* ';'
         """
-        self.__openTag('varDec')    # <varDec>
-        self.__compileKeyWord()     #   'var'
-        self.__compileType()        #   type
-        self.__compileVarName()     #   varName
+        self.__openTag('varDec')            # <varDec>
+        self.__compileKeyWord()             #   'var'
+        type = self.__compileType()         #   type
+        name = self.__compileVarName()      #   varName
+        self.__symbolTable.define(name, type, KIND_VAR)
         while self.__tokenizer.peek() == RE_COMMA:
-            self.__compileSymbol()  #   ','
-            self.__compileVarName() #   varName
-        self.__compileSymbol()      #   ';'
-        self.__closeTag()           # </varDec>
+            self.__compileSymbol()          #   ','
+            name = self.__compileVarName()  #   varName
+            self.__symbolTable.define(name, type, KIND_VAR)
+        self.__compileSymbol()              #   ';'
+        self.__closeTag()                   # </varDec>
 
     def compileStatements(self):
         """
@@ -359,12 +401,16 @@ class CompilationEngine:
         Syntax:
         'return' expression? ';'
         """
+        # Compile XML
         self.__openTag('returnStatement')   # <returnStatement>
         self.__compileKeyWord()             #   'return'
         if self.__tokenizer.peek() != RE_SEMICOLON:
             self.CompileExpression()        #   expression
         self.__compileSymbol()              #   ';'
         self.__closeTag()                   # </returnStatement>
+
+        # Compile VM
+        self.__vmWriter.writeReturn()
 
     def compileIf(self):
         """
@@ -394,14 +440,15 @@ class CompilationEngine:
         Syntax:
         term (op term)*
         """
-        self.__openTag('expression')    # <expression>
-        self.CompileTerm()              # term
+        self.__openTag('expression')        # <expression>
+        self.CompileTerm()                  # term
         while self.__tokenizer.peek() in {RE_PLUS, RE_BAR, RE_ASTERISK,
                                           RE_SLASH, RE_AMPERSAND, RE_VBAR,
                                           RE_LT, RE_GT, RE_EQ}:
-            self.__compileSymbol()      # op
-            self.CompileTerm()          # term
-        self.__closeTag()               # </expression>
+            symbol = self.__compileSymbol() # op
+            self.CompileTerm()              # term
+            self.__vmWriter.writeSymbol(symbol)
+        self.__closeTag()                   # </expression>
 
     def CompileTerm(self):
         """
@@ -426,8 +473,8 @@ class CompilationEngine:
             self.CompileExpression()                #   expression
             self.__compileSymbol()                  #   ')'
         elif self.__tokenizer.peek() in {RE_TILDA, RE_BAR}:
-            self.__compileSymbol()              #   unaryOp
-            self.CompileTerm()                  #   term
+            self.__compileSymbol()                  #   unaryOp
+            self.CompileTerm()                      #   term
         elif lookahead == RE_BRACKETS_SQUARE_LEFT:
             self.__compileVarName()                 #   varName
             self.__compileSymbol()                  #   '['
@@ -458,24 +505,26 @@ class CompilationEngine:
 
     def CompileExpressionList(self):
         """
-        Compiles a (possibly empty) commaseparated
-        list of expressions.
+        Compiles a (possibly empty) comma-separated list of expressions.
         Syntax:
         (expression (',' expression)* )?
         """
-        self.__openTag('expressionList')    # <expressionList>
+        exp_count = 1
+        self.__openTag('expressionList')            # <expressionList>
         if self.__tokenizer.peek() != RE_BRACKETS_RIGHT:
-            self.CompileExpression()        #   expression
+            self.CompileExpression()
+            exp_count += 1                          #   expression
             while self.__tokenizer.peek() == RE_COMMA:
-                self.__compileSymbol()      #   ','
-                self.CompileExpression()    #   expression
-        self.__closeTag()                   # </expressionList>
+                self.__compileSymbol()              #   ','
+                self.CompileExpression()
+        self.__closeTag()                           # </expressionList>
+        return exp_count
 
 def main():
     with open("testing\Square\SquareGame.jack", 'r') as infile, \
             open("testing\Square\SquareGame.test.xml", 'w') as \
                     outfile:
-        cybermaster = CompilationEngine(infile, outfile)
+        cybermaster = CompilationEngine(infile, outxml, outvm)
         cybermaster.compileClass()
 
 

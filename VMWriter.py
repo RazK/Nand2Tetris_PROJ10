@@ -2,10 +2,12 @@
 # This class writes VM commands into a file.
 # It encapsulates the VM command syntax.
 ############################################################
+import VMGrammar as vg
 
 ##########################
 # CONSTANTS - VM GRAMMAR #
 ##########################
+NEWLINE = "\n"
 
 # COMMANDS:
 RETURN = "return"
@@ -18,7 +20,7 @@ CALL = "call"
 FUNCTION_DEC = "function"
 
 # SEGMENTS
-CONSTANT = "constant"
+SEGMENT_CONSTANT = "constant"
 
 # ERRORS MSGs
 POP_TO_CONST_MSG = "Pop to constant segment is forbidden"
@@ -35,16 +37,18 @@ class VMWriter:
     """
     Writes VM commands into the output file.
     """
+
     ################
     # CONSTRUCTORS #
     ################
 
-    def __init__(self, output_file_name):
+    def __init__(self, in_filename, output_file):
         """
         Create a new VMWriter object, creates a new output file and prepares it
         for writing
         """
-        self.__output = open(output_file_name, 'w')
+        self.__in_filename = in_filename
+        self.__output = output_file
 
     ##################
     # PUBLIC METHODS #
@@ -56,7 +60,8 @@ class VMWriter:
         :param segment: CONST, ARG, LOCAL, STATIC, THIS, THAT, POINTER, TEMP.
         :param index: The index of a register in the segment.
         """
-        self.__output.write(PUSH + SPACE + segment + SPACE + str(index))
+        self.__output.write(
+            PUSH + SPACE + segment + SPACE + str(index) + NEWLINE)
 
     def writePop(self, segment, index):
         """
@@ -66,31 +71,33 @@ class VMWriter:
         """
 
         # The constant segment is virtual - It doesn't exists.
-        if segment == CONSTANT:
+        if segment == SEGMENT_CONSTANT:
             raise ValueError(POP_TO_CONST_MSG)
 
-        self.__output.write(POP + SPACE + segment + SPACE + str(index))
+        self.__output.write(POP + SPACE + segment + SPACE + str(index) +
+                            NEWLINE)
 
     def writeArithmetic(self, command):
         """
         Writes a VM arithmetic command.
         :param command: ADD, SUB, NEG, EQ, GT, LT, AND, OR, NOT
         """
-        self.__output.write(command)
+        vm_command = vg.JACK_2_VM_ARITHMETIC[command]
+        self.__output.write(vm_command + NEWLINE)
 
     def writeLabel(self, label):
         """
         Writes a VM label command.
         :param label: Label's name.
         """
-        self.__output.write(LABEL + SPACE + label)
+        self.__output.write(LABEL + SPACE + label + NEWLINE)
 
     def writeGoto(self, label):
         """
         Writes a VM label command.
         :param label: Label's name.
         """
-        self.__output.write(GOTO + SPACE + label)
+        self.__output.write(GOTO + SPACE + label + NEWLINE)
 
     def writeIf(self, label):
         """
@@ -98,7 +105,7 @@ class VMWriter:
         :param label: The name of the label into which the instruction pointer
         will jump to if the condition is fulfilled.
         """
-        self.__output.write(IF_GOTO + SPACE + label)
+        self.__output.write(IF_GOTO + SPACE + label + NEWLINE)
 
     def writeCall(self, name, n_args):
         """
@@ -106,7 +113,7 @@ class VMWriter:
         :param name: The name of the called function.
         :param n_args: The number of arguments of the called function.
         """
-        self.__output.write(CALL + SPACE + name + SPACE + str(n_args))
+        self.__output.write(CALL + SPACE + name + SPACE + str(n_args) + NEWLINE)
 
     def writeFunction(self, name, n_locals):
         """
@@ -114,14 +121,25 @@ class VMWriter:
         :param name: The name of the declared function.
         :param n_locals: The number of local variables it has.
         """
+        funcname = self.__in_filename + "." + name
         self.__output.write(
-            FUNCTION_DEC + SPACE + name + SPACE + str(n_locals))
+            FUNCTION_DEC + SPACE + funcname + SPACE + str(n_locals) + NEWLINE)
 
     def writeReturn(self):
         """
         Writes a VM return command.
         """
-        self.__output.write(RETURN)
+        self.__output.write(RETURN + NEWLINE)
+
+    def writeSymbol(self, symbol):
+        """
+        Writes the VM command matching the given symbol
+        :param symbol: a Jack symbol
+        """
+        if symbol in vg.JACK_2_VM_ARITHMETIC:
+            self.writeArithmetic(symbol)
+        elif symbol in vg.RE_BRACKETS_SQUARE_RIGHT:  # x[1] --> ]=add
+            self.writeArithmetic(vg.RE_PLUS)
 
     def close(self):
         """

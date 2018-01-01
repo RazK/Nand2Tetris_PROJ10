@@ -3,18 +3,18 @@
 # Jack compilation: type, kind, and running index.
 # The symbol table has 2 nested scopes (class/subroutine).
 ##############################################################################
+from JackGrammar import *
+KIND_STATIC = RE_STATIC
+KIND_FIELD = RE_FIELD
+KIND_VAR = RE_VAR
+KIND_ARG = "ARG"
+KIND_NONE = "NONE"
+IDENTIFIERS_CLASS = {KIND_STATIC, KIND_FIELD}
+IDENTIFIERS_SUBROUTINE = {KIND_ARG, KIND_VAR}
 
-STATIC = "STATIC"
-FIELD = "FIELD"
-ARG = "ARG"
-VAR = "VAR"
-NONE = "NONE"
-IDENTIFIERS_CLASS = {STATIC, FIELD}
-IDENTIFIERS_SUBROUTINE = {ARG, VAR}
-
-ERROR_UNKNOWN_IDENTIFIER_KIND = "Unknown identifier kind"
-ERROR_INVALID_SCOPE = "Invalid scope for identifier kind"
-ERROR_IDENTIFIER_NOT_IN_SCOPE = "Identifer is not int the current scope"
+ERROR_UNKNOWN_IDENTIFIER_KIND = "Unknown identifier kind {}"
+ERROR_INVALID_SCOPE = "Invalid scope for identifier kind {}"
+ERROR_IDENTIFIER_NOT_IN_SCOPE = "Identifer {} is not int the current scope"
 
 
 class SymbolTable:
@@ -34,7 +34,7 @@ class SymbolTable:
         """
         self.__subroutine_scope = dict()
         self.__class_scope = dict()
-        self.__current_scope = None
+        self.__current_scope = self.__class_scope
         self.__running_index = 0
 
     def startSubroutine(self):
@@ -63,18 +63,18 @@ class SymbolTable:
         # Handle class identifier
         if kind in IDENTIFIERS_CLASS:
             if self.__current_scope != self.__class_scope:
-                raise EnvironmentError(ERROR_INVALID_SCOPE, kind)
+                raise EnvironmentError(ERROR_INVALID_SCOPE.format(kind))
             self.__class_scope[name] = var
 
         # Handle subroutine identifier
         elif kind in IDENTIFIERS_SUBROUTINE:
             if self.__current_scope != self.__subroutine_scope:
-                raise EnvironmentError(ERROR_INVALID_SCOPE, kind)
+                raise EnvironmentError(ERROR_INVALID_SCOPE.format(kind))
             self.__subroutine_scope[name] = var
 
         # Handle errors
         else:
-            raise NameError(ERROR_UNKNOWN_IDENTIFIER_KIND, kind)
+            raise NameError(ERROR_UNKNOWN_IDENTIFIER_KIND.format(kind))
 
     def varCount(self, kind):
         """
@@ -95,7 +95,7 @@ class SymbolTable:
         :return: (STATIC, FIELD, ARG, VAR, NONE)
         """
         if name not in self.__current_scope:
-            return NONE
+            return KIND_NONE
         return self.__current_scope[name].kind
 
     def typeOf(self, name):
@@ -115,7 +115,7 @@ class SymbolTable:
         :return: (int) index assigned to named identifier.
         """
         if name not in self.__current_scope:
-            raise EnvironmentError(ERROR_IDENTIFIER_NOT_IN_SCOPE, name)
+            raise EnvironmentError(ERROR_IDENTIFIER_NOT_IN_SCOPE.format(name))
         return self.__current_scope[name].index
 
     def __giveIndex(self):

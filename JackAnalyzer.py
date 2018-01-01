@@ -14,7 +14,8 @@ from CompilationEngine import *
 from JackTokenizer import *
 
 SOURCE_EXTENSION = ".jack"
-OUTPUT_EXTENSION = ".xml"
+XML_EXTENSION = ".xml"
+VM_EXTENSION = ".vm"
 DEFAULT_SOURCE_FILE = "..\\Square.jack"
 
 XML_DELIM_TERMINAL = " "
@@ -66,12 +67,15 @@ def analyze(sources):
     # Parse each source and translates to it the output:
     for sourcename in sources:
         base = os.path.splitext(sourcename)[0]
-        outname = base + OUTPUT_EXTENSION
+        outname_xml = base + XML_EXTENSION
+        outname_vm = base + VM_EXTENSION
 
         # Open source for analyzing, output file for writing
-        with open(sourcename, 'r') as source, open(outname, 'w') as output:
-            # Create a CompilationEngine from the Xxx.jack input file
-            engine = CompilationEngine(source, output)
+        with open(sourcename, 'r') as source, open(outname_xml, 'w') as \
+                outxml, open(outname_vm, 'w') as outvm:
+            # Create a CompilationEngine from the Xvmxx.jack input file
+            basename = os.path.basename(base)
+            engine = CompilationEngine(basename, source, outxml, outvm)
             engine.compileClass()
 
 
