@@ -1,0 +1,5 @@
+1) How do we dael with operation like *  and  / ?  Do we call the relevant
+function in Math?
+2) How to handle escaped characters char by char?
+3)************** We should see how var dec is translated to XML format.
+ We should find a way to identify var's kind and type.
