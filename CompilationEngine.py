@@ -422,14 +422,21 @@ class CompilationEngine:
         Syntax:
         'while' '(' expression ')' '{' statements '}'
         """
+        L1 = self.__uniqueLabel(LABEL_1)
+        L2 = self.__uniqueLabel(LABEL_2)
+
         self.__openTag('whileStatement')    # <whileStatement>
         self.__compileKeyWord()             #   'while'
+        self.__vmWriter.writeLabel(L1)      # label L1
         self.__compileSymbol()              #   '('
         self.CompileExpression()            #   expression
         self.__compileSymbol()              #   ')'
+        self.__vmWriter.writeIf(L2)         # if-goto L2
         self.__compileSymbol()              #   '{'
         self.compileStatements()            #   statements
         self.__compileSymbol()              #   '}'
+        self.__vmWriter.writeGoto(L1)       # goto L1
+        self.__vmWriter.writeLabel(L2)      # lable L2
         self.__closeTag()                   # </whileStatement>
 
     def compileReturnNothing(self):
