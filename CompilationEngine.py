@@ -21,7 +21,9 @@ XML_INDENT_CHAR = "  "
 TOKEN_TYPE_CLASS_NAME = TOKEN_TYPE_IDENTIFIER
 TOKEN_TYPE_SUBROUTINE_NAME = TOKEN_TYPE_IDENTIFIER
 TOKEN_TYPE_VAR_NAME = TOKEN_TYPE_IDENTIFIER
-
+UNIQUE_DELIMITER = "_"
+LABEL_1 = "LABEL1"
+LABEL_2 = "LABEL2"
 
 class CompilationEngine:
     ###############
@@ -43,10 +45,26 @@ class CompilationEngine:
         self.__vmWriter = VMWriter(in_filename, out_vm)
         self.__stack = list()
         self.__tokenizer.advance()
+        self.__unique_id = 0
 
     ###################
     # PRIVATE METHODS #
     ###################
+    def __uniqueLabel(self, label):
+        """
+        Adds a unique id to the given label to prevent collisions with other
+        labels carrying the same name.
+        Example:
+            __uniqueLabel("TRUE") --> "TRUE_1"
+        :param label: label to localize
+        :return: Given label with a unique identifier.
+        """
+        unique_label = "{}{}{}".format(label, UNIQUE_DELIMITER,
+                                       self.__unique_id)
+        self.__unique_id += 1
+        return unique_label
+
+
     def __writeTokenAndAdvance(self, token, token_type):
         """
         Writes the given token as an xml tag to the output.
@@ -173,7 +191,7 @@ class CompilationEngine:
             name += self.__compileSymbol()          # '.'
             name += self.__compileSubroutineName()  # subroutineName
         self.__compileSymbol()                      # '('
-        exp_count = self.CompileExpressionList()          # expressionList
+        exp_count = self.CompileExpressionList()    # expressionList
         self.__compileSymbol()                      # ')'
 
         # Compile VM
@@ -421,20 +439,31 @@ class CompilationEngine:
         'if' '(' expression ')' '{' statements '}' ( 'else' '{' statements
         '}' )?
         """
-        self.__openTag('ifStatement')   # <ifStatement>
-        self.__compileKeyWord()         #   'if'
-        self.__compileSymbol()          #   '('
-        self.CompileExpression()        #   expression
-        self.__compileSymbol()          #   ')'
-        self.__compileSymbol()          #   '{'
-        self.compileStatements()        #   statements
-        self.__compileSymbol()          #   '}'
-        if self.__tokenizer.peek() == RE_ELSE:
-            self.__compileKeyWord()     #   'else'
-            self.__compileSymbol()      #   '{'
-            self.compileStatements()    #   statements
-            self.__compileSymbol()      #   '}'
-        self.__closeTag()               # </ifStatement>
+        L1 = self.__uniqueLabel(LABEL_1)
+        L2 = self.__uniqueLabel(LABEL_2)
+
+        self.__openTag('ifStatement')           # <ifStatement>
+        self.__compileKeyWord()                 #   'if'
+        self.__compileSymbol()                  #   '('
+                                                # VM Code for computing ~(cond)
+        self.CompileExpression()                #   expression
+        self.__compileSymbol()                  #   ')'
+        self.__vmWriter.writeIf(L1)             # if-goto L1
+        self.__compileSymbol()                  #   '{'
+                                                # VM Code for executing s1
+        self.compileStatements()                #   statements
+        self.__compileSymbol()                  #   '}'
+        self.__vmWriter.writeGoto(L2)           # goto L2
+        self.__vmWriter.writeLabel(L1)          # label L1
+        if self.__tokenizer.peek() == RE_ELSE:  #
+            self.__compileKeyWord()             #   'else'
+            self.__compileSymbol()              #   '{'
+                                                # VM Code for executing s2
+            self.compileStatements()            #   statements
+            self.__compileSymbol()              #   '}'
+        self.__vmWriter.writeLabel(L2)          # label L2
+        self.__closeTag()                       # </ifStatement>
+
 
     def CompileExpression(self):
         """
