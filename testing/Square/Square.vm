@@ -1,0 +1,103 @@
+function Square.new 0
+call draw 0
+pop temp 0
+push constant 0
+return
+function Square.dispose 0
+call Memory.deAlloc 1
+pop temp 0
+push constant 0
+return
+function Square.draw 0
+call Screen.setColor 1
+pop temp 0
+call Screen.drawRectangle 1
+pop temp 0
+push constant 0
+return
+function Square.erase 0
+call Screen.setColor 1
+pop temp 0
+call Screen.drawRectangle 1
+pop temp 0
+push constant 0
+return
+function Square.incSize 0
+push constant 254
+push constant 510
+call erase 0
+pop temp 0
+push constant 2
+call draw 0
+pop temp 0
+push constant 0
+return
+function Square.decSize 0
+push constant 2
+call erase 0
+pop temp 0
+push constant 2
+call draw 0
+pop temp 0
+push constant 0
+return
+function Square.moveUp 0
+push constant 1
+call Screen.setColor 1
+pop temp 0
+push constant 1
+call Screen.drawRectangle 1
+pop temp 0
+push constant 2
+call Screen.setColor 1
+pop temp 0
+push constant 1
+call Screen.drawRectangle 1
+pop temp 0
+push constant 0
+return
+function Square.moveDown 0
+push constant 254
+call Screen.setColor 1
+pop temp 0
+push constant 1
+call Screen.drawRectangle 1
+pop temp 0
+push constant 2
+call Screen.setColor 1
+pop temp 0
+push constant 1
+call Screen.drawRectangle 1
+pop temp 0
+push constant 0
+return
+function Square.moveLeft 0
+push constant 1
+call Screen.setColor 1
+pop temp 0
+push constant 1
+call Screen.drawRectangle 1
+pop temp 0
+push constant 2
+call Screen.setColor 1
+pop temp 0
+push constant 1
+call Screen.drawRectangle 1
+pop temp 0
+push constant 0
+return
+function Square.moveRight 0
+push constant 510
+call Screen.setColor 1
+pop temp 0
+push constant 1
+call Screen.drawRectangle 1
+pop temp 0
+push constant 2
+call Screen.setColor 1
+pop temp 0
+push constant 1
+call Screen.drawRectangle 1
+pop temp 0
+push constant 0
+return

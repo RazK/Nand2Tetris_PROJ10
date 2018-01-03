@@ -1,0 +1,34 @@
+function Main.main 0
+push constant 0
+call new 0
+pop temp 0
+call game.run 0
+pop temp 0
+call game.dispose 0
+pop temp 0
+push constant 0
+return
+function Main.test 0
+push constant 0
+push constant 0
+push constant 0
+push constant 115
+push constant 116
+push constant 114
+push constant 105
+push constant 110
+push constant 103
+push constant 32
+push constant 99
+push constant 111
+push constant 110
+push constant 115
+push constant 116
+push constant 97
+push constant 110
+push constant 116
+push constant 1
+push constant 2
+push constant 2
+push constant 0
+return

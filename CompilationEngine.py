@@ -65,18 +65,29 @@ class CompilationEngine:
         return unique_label
 
 
-    def __writeTokenAndAdvance(self, token, token_type):
+    def __writeToken(self, token, token_type):
         """
         Writes the given token as an xml tag to the output.
-        :param token: token tag value
-        :param token_type: token tag type
+        :param token:
+        :param token_type:
+        :return:
         """
-        # Build XML tag
         tag = self.__getIndentedTag("<{0}>{1}{2}{1}</{0}>\n"
                                     .format(token_type,
                                             XML_DELIM_TERMINAL,
                                             token))
         self.__out_xml.write(tag)
+
+
+    def __writeTokenAndAdvance(self, token, token_type):
+        """
+        Writes the given token as an xml tag to the output and extracts the
+        next token from the code.
+        :param token: token tag value
+        :param token_type: token tag type
+        """
+        # Build XML tag
+        self.__writeToken(token, token_type)
         self.__tokenizer.advance()
 
     def __getIndentedTag(self, tag):
@@ -358,7 +369,8 @@ class CompilationEngine:
         """
         self.__openTag('statements')    # <statements>
         statement = self.__tokenizer.peek()
-        while statement in {RE_LET, RE_IF, RE_WHILE, RE_DO, RE_RETURN}:
+        while statement in {RE_LET, RE_IF, RE_WHILE, RE_DO, RE_RETURN_NOTHING,
+                            RE_RETURN_SOMETHING}:
             if statement == RE_LET:
                 self.compileLet()
             elif statement == RE_IF:
@@ -367,8 +379,10 @@ class CompilationEngine:
                 self.compileWhile()
             elif statement == RE_DO:
                 self.compileDo()
-            elif statement == RE_RETURN:
-                self.compileReturn()
+            elif statement == RE_RETURN_NOTHING:
+                self.compileReturnNothing()
+            elif statement == RE_RETURN_SOMETHING:
+                self.compileReturnSomething()
             statement = self.__tokenizer.peek()
         self.__closeTag()               # </statements>
 
@@ -418,19 +432,33 @@ class CompilationEngine:
         self.__compileSymbol()              #   '}'
         self.__closeTag()                   # </whileStatement>
 
-    def compileReturn(self):
+    def compileReturnNothing(self):
+        """
+        Compiles a 'return;' statement.
+        Syntax:
+        'return;'
+        """
+        # Compile XML
+        self.__openTag('returnStatement')       # <returnStatement>
+        self.__writeToken('return',             #   'return'
+                          TOKEN_TYPE_KEYWORD)
+        self.__writeTokenAndAdvance(';',        #   ';'
+                                    TOKEN_TYPE_SYMBOL)
+        self.__closeTag()                       # </returnStatement>
+
+    def compileReturnSomething(self):
         """
         Compiles a return statement.
         Syntax:
         'return' expression? ';'
         """
         # Compile XML
-        self.__openTag('returnStatement')   # <returnStatement>
-        self.__compileKeyWord()             #   'return'
-        if self.__tokenizer.peek() != RE_SEMICOLON:
-            self.CompileExpression()        #   expression
-        self.__compileSymbol()              #   ';'
-        self.__closeTag()                   # </returnStatement>
+        self.__openTag('returnStatement')       # <returnStatement>
+        self.__writeTokenAndAdvance('return',   #   'return'
+                                    TOKEN_TYPE_KEYWORD)
+        self.CompileExpression()                #   expression
+        self.__compileSymbol()                  #   ';'
+        self.__closeTag()                       # </returnStatement>
 
     def compileIf(self):
         """

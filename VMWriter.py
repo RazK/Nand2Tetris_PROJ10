@@ -2,7 +2,7 @@
 # This class writes VM commands into a file.
 # It encapsulates the VM command syntax.
 ############################################################
-import VMGrammar as vg
+#import VMGrammar as vg
 from JackGrammar import *
 
 ##########################
@@ -87,8 +87,8 @@ class VMWriter:
         Writes a VM arithmetic command.
         :param command: ADD, SUB, NEG, EQ, GT, LT, AND, OR, NOT
         """
-        vm_command = vg.JACK_2_VM_ARITHMETIC[command]
-        self.__output.write(vm_command + NEWLINE)
+        #vm_command = vg.JACK_2_VM_ARITHMETIC[command]
+        #self.__output.write(vm_command + NEWLINE)
 
     def writeLabel(self, label):
         """
@@ -144,10 +144,10 @@ class VMWriter:
         Writes the VM command matching the given symbol
         :param symbol: a Jack symbol
         """
-        if symbol in vg.JACK_2_VM_ARITHMETIC:
-            self.writeArithmetic(symbol)
-        elif symbol in vg.RE_BRACKETS_SQUARE_RIGHT:  # x[1] --> ]=add
-            self.writeArithmetic(vg.RE_PLUS)
+       # if symbol in vg.JACK_2_VM_ARITHMETIC:
+        #    self.writeArithmetic(symbol)
+        # elif symbol in vg.RE_BRACKETS_SQUARE_RIGHT:  # x[1] --> ]=add
+        #     self.writeArithmetic(vg.RE_PLUS)
 
     def close(self):
         """

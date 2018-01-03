@@ -1,0 +1,11 @@
+class Main{
+    function void main(){
+        var Obj obji;
+        var string test;
+        let obji = Obj.new();
+
+        let test = obji.dance();
+
+        return;
+    }
+}

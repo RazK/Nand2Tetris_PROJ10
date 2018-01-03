@@ -1,0 +1,11 @@
+class Obj{
+
+    constructor Obj new(){
+
+        return this;
+    }
+
+    method string dance(){
+        return "dance!";
+    }
+}
