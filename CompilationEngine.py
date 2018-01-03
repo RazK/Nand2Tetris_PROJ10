@@ -522,13 +522,13 @@ class CompilationEngine:
         self.__closeTag()                           # </expressionList>
         return exp_count
 
-def main():
-    with open("testing\Square\SquareGame.jack", 'r') as infile, \
-            open("testing\Square\SquareGame.test.xml", 'w') as \
-                    outfile:
-        cybermaster = CompilationEngine(infile, outxml, outvm)
-        cybermaster.compileClass()
-
-
-if __name__ == '__main__':
-    main()
+# def main():
+#     with open("testing\Square\SquareGame.jack", 'r') as infile, \
+#             open("testing\Square\SquareGame.test.xml", 'w') as \
+#                     outfile:
+#         cybermaster = CompilationEngine(infile, outxml, outvm)
+#         cybermaster.compileClass()
+#
+#
+# if __name__ == '__main__':
+#     main()

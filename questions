@@ -1,5 +1,8 @@
 1) How do we dael with operation like *  and  / ?  Do we call the relevant
-function in Math?
+function in Math? - SOLVED
 2) How to handle escaped characters char by char?
-3)************** We should see how var dec is translated to XML format.
- We should find a way to identify var's kind and type.
+3) We should see how var dec is translated to XML format.
+ We should find a way to identify var's kind and type.p   -  SOLVED
+4) We should modify the number of arguments of method with k arguments to  k+1.
+5) Test call of obj.foo(...) where obj is an object of some class and foo is a class method.
+6) Should we pop to temp 0 after calling every function or after void functions only?
