@@ -23,9 +23,6 @@ FUNCTION_DEC = "function"
 POP_RETURN = "pop temp 0"
 RETURN_VOID = "push constant 0"
 
-# SEGMENTS
-SEGMENT_CONSTANT = "constant"
-
 # ERRORS MSGs
 POP_TO_CONST_MSG = "Pop to constant segment is forbidden"
 
@@ -79,7 +76,7 @@ class VMWriter:
         """
 
         # The constant segment is virtual - It doesn't exists.
-        if segment == SEGMENT_CONSTANT:
+        if segment == vg.VM_SEGMENT_CONSTANT:
             raise ValueError(POP_TO_CONST_MSG)
 
         self.__output.write(POP + SPACE + segment + SPACE + str(index) +
