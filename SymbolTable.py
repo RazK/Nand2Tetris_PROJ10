@@ -97,7 +97,11 @@ class SymbolTable:
         :return: (int) number of variables of the given kind already defined in
         the current scope.
         """
-        return len([var for var in self.__current_scope.values()
+        if kind in {KIND_FIELD, KIND_STATIC}:
+            scope = self.__class_scope
+        else:
+            scope = self.__current_scope
+        return len([var for var in scope.values()
                     if var.kind == kind])
 
     def segmentOf(self, name):
@@ -116,7 +120,9 @@ class SymbolTable:
         :return: (STATIC, FIELD, ARG, VAR, NONE)
         """
         if name not in self.__current_scope:
-            return KIND_NONE
+            if name not in self.__class_scope:
+                return KIND_NONE
+            return self.__class_scope[name].kind
         return self.__current_scope[name].kind
 
     def typeOf(self, name):
@@ -126,7 +132,9 @@ class SymbolTable:
         :return: (String) type of the named identifier in the current scope.
         """
         if name not in self.__current_scope:
-            raise EnvironmentError(ERROR_IDENTIFIER_NOT_IN_SCOPE, name)
+            if name not in self.__class_scope:
+                raise EnvironmentError(ERROR_IDENTIFIER_NOT_IN_SCOPE.format(name))
+            return self.__class_scope[name].type
         return self.__current_scope[name].type
 
     def indexOf(self, name):
@@ -136,7 +144,10 @@ class SymbolTable:
         :return: (int) index assigned to named identifier.
         """
         if name not in self.__current_scope:
-            raise EnvironmentError(ERROR_IDENTIFIER_NOT_IN_SCOPE.format(name))
+            if name not in self.__class_scope:
+                raise EnvironmentError(
+                    ERROR_IDENTIFIER_NOT_IN_SCOPE.format(name))
+            return self.__class_scope[name].index
         return self.__current_scope[name].index
 
     def __giveIndex(self, kind):

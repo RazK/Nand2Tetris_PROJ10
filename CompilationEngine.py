@@ -236,31 +236,41 @@ class CompilationEngine:
         subroutineName '(' expressionList ')'
         """
         # Compile XML
-        name = ""
+        callName = ""
+        exp_count = 0
         if self.__tokenizer.lookahead() == RE_DOT:      # className | varName
             # extract var\class name
-            name = self.__tokenizer.peek()
+            callName = self.__tokenizer.peek()
             # className or varName?
-            kind = self.__symbolTable.kindOf(name)
+            kind = self.__symbolTable.kindOf(callName)
             if (kind != KIND_NONE):                     # varName
                 # Use class name instead of object name
-                name = self.__symbolTable.typeOf(name)
+                varName = callName
+                callName = self.__symbolTable.typeOf(callName)
                 # Push variable (this) and call class method
-                index = self.__symbolTable.indexOf(name)
-                segment = self.__symbolTable.segmentOf(name)
+                index = self.__symbolTable.indexOf(varName)
+                segment = self.__symbolTable.segmentOf(varName)
                 self.__vmWriter.writePush(segment, index)
+                # Include self as argument 0
+                exp_count += 1
                 self.__compileIdentifier(kind, STATUS_USE, kind, index)
             else:                                       # className
                 self.__compileIdentifier(CATEGORY_CLASS, STATUS_USE)
-            name += self.__compileSymbol()              # '.'
-                                                        # subroutineName
-        name += self.__compileSubroutineName(STATUS_USE)
+
+            callName += self.__compileSymbol()          # '.'
+        else:                                           # subroutineName
+            # Subroutine -> className.Subroutine
+            self.__vmWriter.writePush(VM_SEGMENT_POINTER, 0)
+            callName += self.__className + FUNC_NAME_DELIMITER
+            exp_count += 1
+
+        callName += self.__compileSubroutineName(STATUS_USE)
         self.__compileSymbol()                          # '('
-        exp_count = self.CompileExpressionList()        # expressionList
+        exp_count += self.CompileExpressionList()       # expressionList
         self.__compileSymbol()                          # ')'
 
         # Compile VM
-        self.__vmWriter.writeCall(name, exp_count)
+        self.__vmWriter.writeCall(callName, exp_count)
 
     def __compileVarName(self, status):
         """
@@ -355,13 +365,15 @@ class CompilationEngine:
         self.__openTag('classVarDec')       # <classVarDec>
         kind = self.__compileKeyWord()      #   ('static' | 'field')
         type = self.__compileType()         #   type
-        name = self.__compileVarName()      #   varName
-        self.__symbolTable.define(name, type, kind)
-        # (',' varName)
-        while self.__tokenizer.peek() == RE_COMMA:
-            self.__compileSymbol()          #   ','
-            name = self.__compileVarName()  #   varName
+        moreVars = True
+        while moreVars:                     #   (',' varName)*
+            name = self.__compileVarName(   #   varName
+                STATUS_DEFINE)
             self.__symbolTable.define(name, type, kind)
+            if self.__tokenizer.peek() != RE_COMMA:
+                moreVars = False
+            else:
+                self.__compileSymbol()      #   ','
 
         self.__compileSymbol()              #   ';'
         self.__closeTag()                   # </classVarDec>
@@ -381,16 +393,16 @@ class CompilationEngine:
         self.__openTag('subroutineDec')         # <subroutineDec>
         funcType = self.__compileKeyWord()      #   ('constructor' |
                                                 #   'function' | 'method')
-        if funcType == RE_METHOD:
+        if funcType in {RE_METHOD}:
             # +1 var count for this method (+1 for self)
             self.__symbolTable.define(VM_SELF, self.__className, KIND_ARG)
         if self.__tokenizer.peek() == RE_VOID:
             type = self.__compileKeyWord()      #   'void'
         else:
             type = self.__compileType()         #   type
-        subNname = self.__compileSubroutineName(#   soubroutineName
+        subName = self.__compileSubroutineName( #   soubroutineName
             STATUS_DEFINE)
-        name = self.__className + FUNC_NAME_DELIMITER + subNname
+        name = self.__className + FUNC_NAME_DELIMITER + subName
         self.__compileSymbol()                  #   '('
         self.compileParameterList()             #   parameterList
         self.__compileSymbol()                  #   ')'
@@ -614,7 +626,11 @@ class CompilationEngine:
                                                 # VM Code for executing ELSE
             self.compileStatements()            #   statements
             self.__compileSymbol()              #   '}'
-        self.__vmWriter.writeLabel(LABEL_END)   # label L2
+            self.__vmWriter.writeLabel(         # label END
+                LABEL_END)
+        else:
+            self.__vmWriter.writeLabel(         # label FALSE
+                LABEL_FALSE)
         self.__closeTag()                       # </ifStatement>
 
 

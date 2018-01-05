@@ -162,10 +162,6 @@ class VMWriter:
         """
         self.__output.close()
 
-    def __funcname(self, name):
-        return self.__in_filename + FUNC_NAME_DELIMITER + name
-
-
 ########################
 # TESTS - REMOVE LATER #
 ########################
