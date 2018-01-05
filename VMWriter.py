@@ -21,7 +21,7 @@ FUNCTION_DEC = "function"
 
 # CONSTANT VM COMMANDS
 POP_RETURN = "pop temp 0"
-RETURN_VOID = "push constant 0"
+PUSH_VOID = "push constant 0"
 
 # ERRORS MSGs
 POP_TO_CONST_MSG = "Pop to constant segment is forbidden"
@@ -118,9 +118,9 @@ class VMWriter:
         :param name: The name of the called function.
         :param n_args: The number of arguments of the called function.
         """
-        funcname = self.__funcname(name)
+        #funcname = self.__funcname(name)
         self.__output.write(
-            CALL + SPACE + funcname + SPACE + str(n_args) + NEWLINE)
+            CALL + SPACE + name + SPACE + str(n_args) + NEWLINE)
 
     def writeFunction(self, name, n_locals):
         """
@@ -128,16 +128,19 @@ class VMWriter:
         :param name: The name of the declared function.
         :param n_locals: The number of local variables it has.
         """
-        funcname = self.__funcname(name)
+        #funcname = self.__funcname(name)
         self.__output.write(
-            FUNCTION_DEC + SPACE + funcname + SPACE + str(n_locals) + NEWLINE)
+            FUNCTION_DEC + SPACE + name + SPACE + str(n_locals) + NEWLINE)
 
     def writeReturn(self, returnType=RE_VOID):
         """
         Writes a VM return command.
         """
+        # Void functions forced to push 0 before returning
+        # (Non-void already pushed return value before reaching here)
         if (returnType == RE_VOID):
-            self.__output.write(RETURN_VOID + NEWLINE)
+            self.__output.write(PUSH_VOID + NEWLINE)
+        # Write 'return' statement
         self.__output.write(RETURN + NEWLINE)
 
     def writeSymbol(self, symbol):

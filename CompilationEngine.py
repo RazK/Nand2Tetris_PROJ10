@@ -22,8 +22,8 @@ TOKEN_TYPE_CLASS_NAME = TOKEN_TYPE_IDENTIFIER
 TOKEN_TYPE_SUBROUTINE_NAME = TOKEN_TYPE_IDENTIFIER
 TOKEN_TYPE_VAR_NAME = TOKEN_TYPE_IDENTIFIER
 UNIQUE_DELIMITER = "_"
-LABEL_1 = "LABEL1"
-LABEL_2 = "LABEL2"
+WHILE_EXP = "WHILE_EXP"
+WHILE_END = "WHILE_END"
 
 # Identifiers
 STATUS_DEFINE = "definition"
@@ -181,10 +181,10 @@ class CompilationEngine:
 
         corrected = self.__correctString(string)
         self.__vmWriter.writePush(VM_SEGMENT_CONSTANT, len(corrected))
-        self.__vmWriter.writeCall(VM_OS_STRING_NEW, 1)
+        self.__vmWriter.writeCall(OS_STRING_NEW, 1)
         for char in corrected:
             self.__vmWriter.writePush(VM_SEGMENT_CONSTANT, ord(char))
-            self.__vmWriter.writeCall(VM_OS_STRING_APPEND_CHAR, 2)
+            self.__vmWriter.writeCall(OS_STRING_APPEND_CHAR, 2)
 
     def __compileClassName(self, status):
         """
@@ -216,8 +216,8 @@ class CompilationEngine:
                 # Use class name instead of object name
                 name = self.__symbolTable.typeOf(name)
                 # Push variable (this) and call class method
-                index = self.__symbolTable.indexOf()
-                segment = KIND_2_SEGMENT[kind]
+                index = self.__symbolTable.indexOf(name)
+                segment = self.__symbolTable.segmentOf(name)
                 self.__vmWriter.writePush(segment, index)
                 self.__compileIdentifier(kind, STATUS_USE, kind, index)
             else:                                       # className
@@ -256,7 +256,7 @@ class CompilationEngine:
             type = self.__compileClassName(STATUS_USE)
         return type
 
-    def __compileSubroutineBody(self, name):
+    def __compileSubroutineBody(self, funcType, name):
         """
         Compiles a subroutine body.
         Syntax:
@@ -264,13 +264,22 @@ class CompilationEngine:
         """
         self.__openTag('subroutineBody')    # <subroutineBody>
         self.__compileSymbol()              #   '{'
-
-        vars = 0
         # varDec*
         while self.__tokenizer.peek() == RE_VAR:
             self.compileVarDec()            #   varDec*
-            vars += 1
+        vars = self.__symbolTable.varCount(KIND_VAR)
         self.__vmWriter.writeFunction(name, vars)
+        if funcType == RE_METHOD:
+            # Hold self at pointer
+            self.__vmWriter.writePush(VM_SEGMENT_ARGUMENT, 0)
+            self.__vmWriter.writePop(VM_SEGMENT_POINTER, 0)
+        if funcType == RE_CONSTRUCTOR:
+            # Allocate memory for all fields
+            fields = self.__symbolTable.varCount(KIND_FIELD)
+            self.__vmWriter.writePush(VM_SEGMENT_CONSTANT, fields)
+            self.__vmWriter.writeCall(OS_MEMORY_ALLOC, 1)
+            # Hold allocated memory at pointer
+            self.__vmWriter.writePop(VM_SEGMENT_POINTER, 0)
         self.compileStatements()            #   statements
         self.__compileSymbol()              #   '}'
         self.__closeTag()                   # </subroutineBody>
@@ -286,23 +295,24 @@ class CompilationEngine:
         Syntax:
         'class' className '{' classVarDec* subroutineDec* '}'
         """
-        self.__openTag('class')     # <class>
-        self.__compileKeyWord()     #   'class'
-        self.__compileClassName(    #   className
+        self.__openTag('class')                 # <class>
+        self.__compileKeyWord()                 #   'class'
+        className = self.__compileClassName(    #   className
             STATUS_DEFINE)
-        self.__compileSymbol()      #   '{'
+        self.__className = className
+        self.__compileSymbol()                  #   '{'
 
-        # classVarDec*
+                                                # classVarDec*
         while self.__tokenizer.peek() in {RE_STATIC, RE_FIELD}:
             self.CompileClassVarDec()
 
-        # subroutineDec*
+                                                # subroutineDec*
         while self.__tokenizer.peek() in {RE_CONSTRUCTOR, RE_FUNCTION,
                                           RE_METHOD}:
             self.CompileSubroutine()
 
-        self.__compileSymbol()      #   '}'
-        self.__closeTag()           # </class>
+        self.__compileSymbol()                  #   '}'
+        self.__closeTag()                       # </class>
 
     def CompileClassVarDec(self):
         """
@@ -336,22 +346,23 @@ class CompilationEngine:
 
         # Compile XML
         self.__openTag('subroutineDec')         # <subroutineDec>
-        keyword = self.__compileKeyWord()       #   ('constructor' |
+        funcType = self.__compileKeyWord()      #   ('constructor' |
                                                 #   'function' | 'method')
+        if funcType == RE_METHOD:
+            # +1 var count for this method (+1 for self)
+            self.__symbolTable.define(VM_SELF, self.__className, KIND_ARG)
         if self.__tokenizer.peek() == RE_VOID:
             type = self.__compileKeyWord()      #   'void'
         else:
             type = self.__compileType()         #   type
-        name = self.__compileSubroutineName(    #   soubroutineName
+        subNname = self.__compileSubroutineName(#   soubroutineName
             STATUS_DEFINE)
+        name = self.__className + FUNC_NAME_DELIMITER + subNname
         self.__compileSymbol()                  #   '('
         self.compileParameterList()             #   parameterList
         self.__compileSymbol()                  #   ')'
-        self.__compileSubroutineBody(name)      #   subroutineBody
-
-        # Compile VM
-        self.__vmWriter.writeReturn(type)
-
+        self.__compileSubroutineBody(funcType,
+                                     name)      #   subroutineBody
         self.__closeTag()                       # </subroutineDec>
 
     def compileParameterList(self):
@@ -444,24 +455,40 @@ class CompilationEngine:
         Syntax:
         'let' varName ('[' expression ']')? '=' expression ';'
         """
+        isArray = False
         self.__openTag('letStatement')      # <letStatement>
         self.__compileKeyWord()             #   'let'
         varName = self.__tokenizer.peek()
+        index = self.__symbolTable.indexOf(varName)
+        segment = self.__symbolTable.segmentOf(varName)
         self.__compileVarName(STATUS_USE)   #   varName
         if self.__tokenizer.peek() == RE_BRACKETS_SQUARE_LEFT:
+            isArray = True
             self.__compileSymbol()          #   '['
             self.CompileExpression()        # expression
             self.__compileSymbol()          #   ']'
+            # Add the offset to the variable address
+            self.__vmWriter.writePush(segment, index)
+            self.__vmWriter.writeArithmetic(RE_PLUS)
+            # Address of array element is at stack top
         self.__compileSymbol()              #   '='
         self.CompileExpression()            # expression
         self.__compileSymbol()              #   ';'
         self.__closeTag()                   # </letStatement>
 
-        # Compile assignment to varName
-        segment = self.__symbolTable.segmentOf(varName)
+        if isArray:
+            # Pop rh-expression to temp
+            self.__vmWriter.writePop(VM_SEGMENT_TEMP, 0)
+            # Get address of array element
+            self.__vmWriter.writePop(VM_SEGMENT_POINTER, 1)
+            # Push rh-expression to stack
+            self.__vmWriter.writePush(VM_SEGMENT_TEMP, 0)
+            # Pop rh-expression to address of element
+            self.__vmWriter.writePop(VM_SEGMENT_THAT, 0)
+        else:
         # Compile only if the varName was defined
         # (unlike class name of subroutine name)
-        if segment != KIND_NONE:  # varName was defined
+        # if segment != KIND_NONE:  # varName was defined
             index = self.__symbolTable.indexOf(varName)
             self.__vmWriter.writePop(segment, index)
 
@@ -472,14 +499,17 @@ class CompilationEngine:
         Syntax:
         'while' '(' expression ')' '{' statements '}'
         """
-        L1 = self.__uniqueLabel(LABEL_1)
-        L2 = self.__uniqueLabel(LABEL_2)
+        L1 = self.__uniqueLabel(WHILE_EXP)
+        L2 = self.__uniqueLabel(WHILE_END)
 
         self.__openTag('whileStatement')    # <whileStatement>
         self.__compileKeyWord()             #   'while'
         self.__vmWriter.writeLabel(L1)      # label L1
         self.__compileSymbol()              #   '('
         self.CompileExpression()            #   expression
+        # Negate the expression
+        # (jump out of while if *NOT* expression)
+        self.__vmWriter.writeArithmetic(RE_TILDA)
         self.__compileSymbol()              #   ')'
         self.__vmWriter.writeIf(L2)         # if-goto L2
         self.__compileSymbol()              #   '{'
@@ -501,6 +531,7 @@ class CompilationEngine:
                           TOKEN_TYPE_KEYWORD)
         self.__writeTokenAndAdvance(';',        #   ';'
                                     TOKEN_TYPE_SYMBOL)
+        self.__vmWriter.writeReturn(RE_VOID)
         self.__closeTag()                       # </returnStatement>
 
     def compileReturnSomething(self):
@@ -515,6 +546,7 @@ class CompilationEngine:
                                     TOKEN_TYPE_KEYWORD)
         self.CompileExpression()                #   expression
         self.__compileSymbol()                  #   ';'
+        self.__vmWriter.writeReturn()
         self.__closeTag()                       # </returnStatement>
 
     def compileIf(self):
@@ -524,8 +556,8 @@ class CompilationEngine:
         'if' '(' expression ')' '{' statements '}' ( 'else' '{' statements
         '}' )?
         """
-        L1 = self.__uniqueLabel(LABEL_1)
-        L2 = self.__uniqueLabel(LABEL_2)
+        L1 = self.__uniqueLabel(WHILE_EXP)
+        L2 = self.__uniqueLabel(WHILE_END)
 
         self.__openTag('ifStatement')           # <ifStatement>
         self.__compileKeyWord()                 #   'if'
@@ -603,10 +635,19 @@ class CompilationEngine:
             self.__compileSymbol()                  #   unaryOp
             self.CompileTerm()                      #   term
         elif lookahead == RE_BRACKETS_SQUARE_LEFT:
+            varName = self.__tokenizer.peek()
             self.__compileVarName(STATUS_USE)       #   varName
             self.__compileSymbol()                  #   '['
             self.CompileExpression()                #   expression
             self.__compileSymbol()                  #   ']'
+            # Compile array indexing
+            kind = self.__symbolTable.kindOf(varName)
+            index = self.__symbolTable.indexOf(varName)
+            segment = KIND_2_SEGMENT[kind]
+            self.__vmWriter.writePush(segment, index)
+            self.__vmWriter.writeArithmetic(RE_PLUS)
+            self.__vmWriter.writePop(VM_SEGMENT_POINTER, 1)
+            self.__vmWriter.writePush(VM_SEGMENT_THAT, 0)
         elif lookahead in {RE_BRACKETS_LEFT, RE_DOT}:
             self.__compileSubroutineCall()          #   subroutineCall |
             # (varName | className) '.' subroutineCall
@@ -616,17 +657,24 @@ class CompilationEngine:
             elif self.__tokenizer.tokenType() == TOKEN_TYPE_STRING:
                 self.__compileStringVal()           #   stringConstant
             elif self.__tokenizer.tokenType() == TOKEN_TYPE_KEYWORD:
+                # true | false | null | this
+                # true | false | null - pushed to stack as constants
+                keyword = self.__tokenizer.peek()
+                if keyword in {RE_FALSE, RE_NULL, RE_TRUE}:
+                    self.__vmWriter.writePush(VM_SEGMENT_CONSTANT, 0)
+                    if keyword == RE_TRUE:
+                        self.__vmWriter.writeArithmetic(VM_NOT)
+                # this - pushes pointer
+                elif keyword == RE_THIS:
+                    self.__vmWriter.writePush(VM_SEGMENT_POINTER, 0)
                 self.__compileKeyWord()             #   keywordConstant
             elif self.__tokenizer.tokenType() == TOKEN_TYPE_IDENTIFIER:
                 name = self.__tokenizer.peek()
                 kind = self.__symbolTable.kindOf(name)
-                type = self.__symbolTable.typeOf(name)
                 index = self.__symbolTable.indexOf(name)
+                segment = self.__symbolTable.segmentOf(name)
                 self.__compileIdentifier(kind, STATUS_USE, kind, index)
-            elif self.__tokenizer.peek() == RE_BRACKETS_LEFT:
-                self.__compileSymbol()              #   '('
-                self.CompileExpression()            #   expression
-                self.__compileSymbol()              #   ')'
+                self.__vmWriter.writePush(segment, index)
         self.__closeTag()                           # </term>
 
     def CompileExpressionList(self):

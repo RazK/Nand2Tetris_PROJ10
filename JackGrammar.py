@@ -85,10 +85,13 @@ SYMBOLS = [RE_BRACKETS_CURLY_LEFT, RE_BRACKETS_CURLY_RIGHT,
            RE_LT, RE_GT, RE_EQ, RE_TILDA]
 RE_SYMBOLS = "\\" + '|\\'.join(SYMBOLS)  # https://regex101.com/r/eVCEmK/4
 RE_SYMBOLS_COMPILED = re.compile(RE_SYMBOLS)
+XML_AMPERSAND = "&amp;"
+XML_LT = "&lt;"
+XML_GT = "&gt;"
 RE_SYMBOLS_SPECIAL_TRANSLATE = {
-    RE_AMPERSAND: "&amp;",
-    RE_LT: "&lt;",
-    RE_GT: "&gt;"}
+    RE_AMPERSAND: XML_AMPERSAND,
+    RE_LT: XML_LT,
+    RE_GT: XML_GT}
 #####################
 # INTEGER CONSTANTS #
 #####################
