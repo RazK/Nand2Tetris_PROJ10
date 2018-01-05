@@ -21,9 +21,12 @@ XML_INDENT_CHAR = "  "
 TOKEN_TYPE_CLASS_NAME = TOKEN_TYPE_IDENTIFIER
 TOKEN_TYPE_SUBROUTINE_NAME = TOKEN_TYPE_IDENTIFIER
 TOKEN_TYPE_VAR_NAME = TOKEN_TYPE_IDENTIFIER
-UNIQUE_DELIMITER = "_"
+UNIQUE_DELIMITER = ""
 WHILE_EXP = "WHILE_EXP"
 WHILE_END = "WHILE_END"
+IF_TRUE = "IF_TRUE"
+IF_FALSE = "IF_FALSE"
+IF_END = "IF_END"
 
 # Identifiers
 STATUS_DEFINE = "definition"
@@ -56,25 +59,52 @@ class CompilationEngine:
         self.__vmWriter = VMWriter(in_filename, out_vm)
         self.__stack = list()
         self.__tokenizer.advance()
-        self.__unique_id = 0
+        self.__resetUniqueLabels()
 
     ###################
     # PRIVATE METHODS #
     ###################
-    def __uniqueLabel(self, label):
-        """
-        Adds a unique id to the given label to prevent collisions with other
-        labels carrying the same name.
-        Example:
-            __uniqueLabel("TRUE") --> "TRUE_1"
-        :param label: label to localize
-        :return: Given label with a unique identifier.
-        """
-        unique_label = "{}{}{}".format(label, UNIQUE_DELIMITER,
-                                       self.__unique_id)
-        self.__unique_id += 1
-        return unique_label
 
+    def __resetUniqueLabels(self):
+        self.__unique_id_if = 0
+        self.__unique_id_while = 0
+
+    def __uniqueWhileLabels(self):
+        """
+        Return (IF_TRUE, IF_FALSE, IF_END) labels carrying a unique id to
+        prevent collisions with other labels carrying the same name.
+        Example:
+            while_exp, while_end = __uniqueWhileLabels()
+            -->
+            while_exp = "WHILE_EXP123"
+            while_end = "WHILE_END123"
+        """
+        unique_labels = []
+        for label in [WHILE_EXP, WHILE_END]:
+            unique_labels.append("{}{}{}".format(label,
+                                                 UNIQUE_DELIMITER,
+                                                 self.__unique_id_while))
+        self.__unique_id_while += 1
+        return unique_labels
+
+    def __uniqueIfLabels(self):
+        """
+        Return (IF_TRUE, IF_FALSE, IF_END) labels carrying a unique id to
+        prevent collisions with other labels carrying the same name.
+        Example:
+            if_true, if_false, if_end = __uniqueIfLabels()
+            -->
+            if_true = "IF_TRUE123"
+            if_false = "IF_FALSE123"
+            if_end = "IF_END123"
+        """
+        unique_labels = []
+        for label in [IF_TRUE, IF_FALSE, IF_END]:
+            unique_labels.append("{}{}{}".format(label,
+                                                 UNIQUE_DELIMITER,
+                                                 self.__unique_id_if))
+        self.__unique_id_if += 1
+        return unique_labels
 
     def __writeToken(self, token, token_type):
         """
@@ -155,7 +185,7 @@ class CompilationEngine:
 
         info = "{} {}".format(category, status)
         if kind != KIND_NONE:
-            info += " " + kind
+            info += " " + KIND_2_SEGMENT[kind]
         if index != INDEX_NONE:
             info += " " + str(index)
         info = "[{}] ".format(info)
@@ -237,7 +267,9 @@ class CompilationEngine:
         Compiles a variable name.
         """
         name = self.__tokenizer.peek()
-        index = self.__symbolTable.indexOf(name)
+        index = INDEX_NONE
+        if status != STATUS_DEFINE:
+            index = self.__symbolTable.indexOf(name)
         varName = self.__compileIdentifier(CATEGORY_VAR, status, KIND_VAR,
                                            index)
         return varName
@@ -342,6 +374,7 @@ class CompilationEngine:
         subroutineName '(' parameterList ')' subroutineBody
         """
         # Start subroutine in symbol table
+        self.__resetUniqueLabels()
         self.__symbolTable.startSubroutine()
 
         # Compile XML
@@ -375,16 +408,17 @@ class CompilationEngine:
         parameters = 0                          # no parameters?
         self.__openTag('parameterList')         # <parameterList>
         if self.__tokenizer.peek() != RE_BRACKETS_RIGHT:
-            parameters += 1                     # yes parameters!
-            type = self.__compileType()         #   type
-            name = self.__compileVarName()      #   varName
-            self.__symbolTable.define(name, type, KIND_ARG)
-            while self.__tokenizer.peek() == RE_COMMA:
-                self.__compileSymbol()          #   ','
+            moreVars = True
+            while moreVars:
+                parameters += 1                 # yes parameters!
                 type = self.__compileType()     #   type
-                name = self.__compileVarName()  #   varName
+                name = self.__compileVarName(   #   varName
+                    STATUS_DEFINE)
                 self.__symbolTable.define(name, type, KIND_ARG)
-                parameters += 1                 # more parameters :-O
+                if self.__tokenizer.peek() == RE_COMMA:
+                    self.__compileSymbol()      # ','
+                else:
+                    moreVars = False
         self.__closeTag()                       # </parametersList>
         return parameters
 
@@ -469,7 +503,7 @@ class CompilationEngine:
             self.__compileSymbol()          #   ']'
             # Add the offset to the variable address
             self.__vmWriter.writePush(segment, index)
-            self.__vmWriter.writeArithmetic(RE_PLUS)
+            self.__vmWriter.writeArithmetic(RE_PLUS, True)
             # Address of array element is at stack top
         self.__compileSymbol()              #   '='
         self.CompileExpression()            # expression
@@ -499,25 +533,25 @@ class CompilationEngine:
         Syntax:
         'while' '(' expression ')' '{' statements '}'
         """
-        L1 = self.__uniqueLabel(WHILE_EXP)
-        L2 = self.__uniqueLabel(WHILE_END)
+        LABEL_EXP, LABEL_END = self.__uniqueWhileLabels()
 
-        self.__openTag('whileStatement')    # <whileStatement>
-        self.__compileKeyWord()             #   'while'
-        self.__vmWriter.writeLabel(L1)      # label L1
-        self.__compileSymbol()              #   '('
-        self.CompileExpression()            #   expression
+        self.__openTag('whileStatement')        # <whileStatement>
+        self.__compileKeyWord()                 #   'while'
+        self.__compileSymbol()                  #   '('
+        self.__vmWriter.writeLabel(             # label WHILE_EXP
+            LABEL_EXP)
+        self.CompileExpression()                #   expression
         # Negate the expression
         # (jump out of while if *NOT* expression)
-        self.__vmWriter.writeArithmetic(RE_TILDA)
-        self.__compileSymbol()              #   ')'
-        self.__vmWriter.writeIf(L2)         # if-goto L2
-        self.__compileSymbol()              #   '{'
-        self.compileStatements()            #   statements
-        self.__compileSymbol()              #   '}'
-        self.__vmWriter.writeGoto(L1)       # goto L1
-        self.__vmWriter.writeLabel(L2)      # lable L2
-        self.__closeTag()                   # </whileStatement>
+        self.__vmWriter.writeArithmetic(RE_TILDA, False)
+        self.__compileSymbol()                  #   ')'
+        self.__vmWriter.writeIf(LABEL_END)      # if-goto WHILE_END
+        self.__compileSymbol()                  #   '{'
+        self.compileStatements()                #   statements
+        self.__compileSymbol()                  #   '}'
+        self.__vmWriter.writeGoto(LABEL_EXP)    # goto WHILE_EXP
+        self.__vmWriter.writeLabel(LABEL_END)   # lable WHILE_END
+        self.__closeTag()                       # </whileStatement>
 
     def compileReturnNothing(self):
         """
@@ -531,7 +565,7 @@ class CompilationEngine:
                           TOKEN_TYPE_KEYWORD)
         self.__writeTokenAndAdvance(';',        #   ';'
                                     TOKEN_TYPE_SYMBOL)
-        self.__vmWriter.writeReturn(RE_VOID)
+        self.__vmWriter.writeReturn(True)
         self.__closeTag()                       # </returnStatement>
 
     def compileReturnSomething(self):
@@ -556,8 +590,7 @@ class CompilationEngine:
         'if' '(' expression ')' '{' statements '}' ( 'else' '{' statements
         '}' )?
         """
-        L1 = self.__uniqueLabel(WHILE_EXP)
-        L2 = self.__uniqueLabel(WHILE_END)
+        LABEL_TRUE, LABEL_FALSE, LABEL_END = self.__uniqueIfLabels()
 
         self.__openTag('ifStatement')           # <ifStatement>
         self.__compileKeyWord()                 #   'if'
@@ -565,20 +598,23 @@ class CompilationEngine:
                                                 # VM Code for computing ~(cond)
         self.CompileExpression()                #   expression
         self.__compileSymbol()                  #   ')'
-        self.__vmWriter.writeIf(L1)             # if-goto L1
+        self.__vmWriter.writeIf(LABEL_TRUE)     # if-goto LABEL_TRUE
+        self.__vmWriter.writeGoto(LABEL_FALSE)  # goto LABEL_FALSE
+        self.__vmWriter.writeLabel(LABEL_TRUE)  # label LABEL_TRUE
         self.__compileSymbol()                  #   '{'
-                                                # VM Code for executing s1
+                                                # VM Code for executing TRUE
         self.compileStatements()                #   statements
         self.__compileSymbol()                  #   '}'
-        self.__vmWriter.writeGoto(L2)           # goto L2
-        self.__vmWriter.writeLabel(L1)          # label L1
         if self.__tokenizer.peek() == RE_ELSE:  #
+            self.__vmWriter.writeGoto(LABEL_END)# goto LABEL_END
+            self.__vmWriter.writeLabel(         # label LABEL_FALSE
+                LABEL_FALSE)
             self.__compileKeyWord()             #   'else'
             self.__compileSymbol()              #   '{'
-                                                # VM Code for executing s2
+                                                # VM Code for executing ELSE
             self.compileStatements()            #   statements
             self.__compileSymbol()              #   '}'
-        self.__vmWriter.writeLabel(L2)          # label L2
+        self.__vmWriter.writeLabel(LABEL_END)   # label L2
         self.__closeTag()                       # </ifStatement>
 
 
@@ -632,8 +668,9 @@ class CompilationEngine:
             self.CompileExpression()                #   expression
             self.__compileSymbol()                  #   ')'
         elif self.__tokenizer.peek() in {RE_TILDA, RE_BAR}:
-            self.__compileSymbol()                  #   unaryOp
+            symbol = self.__compileSymbol()         #   unaryOp
             self.CompileTerm()                      #   term
+            self.__vmWriter.writeArithmetic(symbol, False)
         elif lookahead == RE_BRACKETS_SQUARE_LEFT:
             varName = self.__tokenizer.peek()
             self.__compileVarName(STATUS_USE)       #   varName
@@ -645,7 +682,7 @@ class CompilationEngine:
             index = self.__symbolTable.indexOf(varName)
             segment = KIND_2_SEGMENT[kind]
             self.__vmWriter.writePush(segment, index)
-            self.__vmWriter.writeArithmetic(RE_PLUS)
+            self.__vmWriter.writeArithmetic(RE_PLUS, True)
             self.__vmWriter.writePop(VM_SEGMENT_POINTER, 1)
             self.__vmWriter.writePush(VM_SEGMENT_THAT, 0)
         elif lookahead in {RE_BRACKETS_LEFT, RE_DOT}:
@@ -660,10 +697,10 @@ class CompilationEngine:
                 # true | false | null | this
                 # true | false | null - pushed to stack as constants
                 keyword = self.__tokenizer.peek()
-                if keyword in {RE_FALSE, RE_NULL, RE_TRUE}:
+                if keyword in {RE_FALSE, RE_NULL, RE_TRUE, RE_FALSE}:
                     self.__vmWriter.writePush(VM_SEGMENT_CONSTANT, 0)
                     if keyword == RE_TRUE:
-                        self.__vmWriter.writeArithmetic(VM_NOT)
+                        self.__vmWriter.writeArithmetic(RE_TILDA, False)
                 # this - pushes pointer
                 elif keyword == RE_THIS:
                     self.__vmWriter.writePush(VM_SEGMENT_POINTER, 0)

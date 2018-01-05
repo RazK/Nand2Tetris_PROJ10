@@ -82,12 +82,15 @@ class VMWriter:
         self.__output.write(POP + SPACE + segment + SPACE + str(index) +
                             NEWLINE)
 
-    def writeArithmetic(self, command):
+    def writeArithmetic(self, command, isBinary=True):
         """
         Writes a VM arithmetic command.
         :param command: ADD, SUB, NEG, EQ, GT, LT, AND, OR, NOT
         """
-        vm_command = vg.JACK_2_VM_ARITHMETIC[command]
+        translate = vg.JACK_2_VM_ARITHMETIC_UNARY
+        if isBinary:
+            translate = vg.JACK_2_VM_ARITHMETIC_BINARY
+        vm_command = translate[command]
         self.__output.write(vm_command + NEWLINE)
 
     def writeLabel(self, label):
@@ -132,13 +135,13 @@ class VMWriter:
         self.__output.write(
             FUNCTION_DEC + SPACE + name + SPACE + str(n_locals) + NEWLINE)
 
-    def writeReturn(self, returnType=RE_VOID):
+    def writeReturn(self, isVoid=False):
         """
         Writes a VM return command.
         """
         # Void functions forced to push 0 before returning
         # (Non-void already pushed return value before reaching here)
-        if (returnType == RE_VOID):
+        if (isVoid):
             self.__output.write(PUSH_VOID + NEWLINE)
         # Write 'return' statement
         self.__output.write(RETURN + NEWLINE)
@@ -148,10 +151,10 @@ class VMWriter:
         Writes the VM command matching the given symbol
         :param symbol: a Jack symbol
         """
-        if symbol in vg.JACK_2_VM_ARITHMETIC:
-           self.writeArithmetic(symbol)
+        if symbol in vg.JACK_2_VM_ARITHMETIC_BINARY:
+           self.writeArithmetic(symbol, True)
         elif symbol in vg.RE_BRACKETS_SQUARE_RIGHT:  # x[1] --> ]=add
-           self.writeArithmetic(vg.RE_PLUS)
+           self.writeArithmetic(vg.RE_PLUS, True)
 
     def close(self):
         """

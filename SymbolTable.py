@@ -40,7 +40,7 @@ class SymbolTable:
         self.__subroutine_scope = dict()
         self.__class_scope = dict()
         self.__current_scope = self.__class_scope
-        self.__running_index = 0
+        self.__initIndexes()
 
     def startSubroutine(self):
         """
@@ -49,6 +49,14 @@ class SymbolTable:
         """
         self.__subroutine_scope = dict()
         self.__current_scope = self.__subroutine_scope
+        self.__initIndexes()
+
+    def __initIndexes(self):
+        self.__running_indexes  = { KIND_FIELD  : 0,
+                                    KIND_VAR    : 0,
+                                    KIND_ARG    : 0,
+                                    KIND_STATIC : 0}
+
 
     def define(self, name, type, kind):
         """
@@ -63,7 +71,7 @@ class SymbolTable:
         # Should we validate scope here, or rather actually determine it here?
 
         # Generate named identifier from parameters
-        var = self.__NamedIdentifier(name, type, kind, self.__giveIndex())
+        var = self.__NamedIdentifier(name, type, kind, self.__giveIndex(kind))
 
         # Handle class identifier
         if kind in IDENTIFIERS_CLASS:
@@ -131,12 +139,12 @@ class SymbolTable:
             raise EnvironmentError(ERROR_IDENTIFIER_NOT_IN_SCOPE.format(name))
         return self.__current_scope[name].index
 
-    def __giveIndex(self):
+    def __giveIndex(self, kind):
         """
         Returns the next available running index and increments the running
         index.
         :return: (int) next available running index.
         """
-        index = self.__running_index
-        self.__running_index += 1
+        index = self.__running_indexes[kind]
+        self.__running_indexes[kind] += 1
         return index
