@@ -25,6 +25,17 @@ UNIQUE_DELIMITER = "_"
 LABEL_1 = "LABEL1"
 LABEL_2 = "LABEL2"
 
+# Identifiers
+STATUS_DEFINED = "definition"
+STATUS_USED = "usage"
+CATEGORY_VAR = KIND_VAR
+CATEGORY_ARG = KIND_ARG
+CATEGORY_STATIC = KIND_STATIC
+CATEGORY_FIELD = KIND_FIELD
+CATEGORY_CLASS = RE_CLASS
+CATEGORY_SUBROUTINE = "subroutine"
+INDEX_NONE = -1
+
 class CompilationEngine:
     ###############
     # CONSTRUCTOR #
@@ -136,18 +147,20 @@ class CompilationEngine:
         self.__writeTokenAndAdvance(symbol, TOKEN_TYPE_SYMBOL)
         return symbol
 
-    def __compileIdentifier(self, kind=KIND_NONE):
+    def __compileIdentifier(self, category, status, kind=KIND_NONE,
+                            index=INDEX_NONE):
         """
         Compile an identifier token
         """
+
+        info = "{} {}".format(category, status)
+        if kind != KIND_NONE:
+            info += " " + kind
+        if index != INDEX_NONE:
+            info += " " + index
+        info = "[{}] ".format(info)
         identifier = self.__tokenizer.identifier()
-        self.__writeTokenAndAdvance(identifier, TOKEN_TYPE_IDENTIFIER)
-        segment = self.__symbolTable.kindOf(identifier)
-        # Compile only if the identifier was defined
-        # (unlike class name of subroutine name)
-        if segment != KIND_NONE: # identifier was defined
-            index = self.__symbolTable.indexOf(identifier)
-            self.__vmWriter.writePush(segment, index)
+        self.__writeTokenAndAdvance(info + identifier, TOKEN_TYPE_IDENTIFIER)
         return identifier
 
     def __compileIntVal(self):
@@ -174,36 +187,44 @@ class CompilationEngine:
         """
         Compiles a variable name.
         """
-        return self.__compileIdentifier()
+        return self.__compileIdentifier(CATEGORY_CLASS,STATUS_DEFINED)
 
-    def __compileSubroutineName(self):
+    def __compileSubroutineName(self, status):
         """
         Compiles a variable name.
         """
-        return self.__compileIdentifier()
+        return self.__compileIdentifier(CATEGORY_SUBROUTINE, status)
 
     def __compileSubroutineCall(self):
         """
         Compiles a subroutine call.
         Syntax:
-        subroutineName '(' expressionList ')' | ( className | varName) '.'
+        ( className | varName) '.' subroutineName '(' expressionList ')' |
         subroutineName '(' expressionList ')'
         """
         # Compile XML
-        name = self.__compileIdentifier()           # subroutineName |
-                                                    # className | varName
-        # Call of registered object method?
-        kind = self.__symbolTable.kindOf(name)
-        if (kind != KIND_NONE):
-            # Use class name instead of object name
-            name = self.__symbolTable.typeOf(name)
-
-        if self.__tokenizer.peek() == RE_DOT:
-            name += self.__compileSymbol()          # '.'
-            name += self.__compileSubroutineName()  # subroutineName
-        self.__compileSymbol()                      # '('
-        exp_count = self.CompileExpressionList()    # expressionList
-        self.__compileSymbol()                      # ')'
+        name = ""
+        if self.__tokenizer.lookahead() == RE_DOT:      # className | varName
+            # extract var\class name
+            name = self.__tokenizer.peek()
+            # className or varName?
+            kind = self.__symbolTable.kindOf(name)
+            if (kind != KIND_NONE):                     # varName
+                # Use class name instead of object name
+                name = self.__symbolTable.typeOf(name)
+                # Push variable (this) and call class method
+                index = self.__symbolTable.indexOf()
+                segment = kind
+                self.__vmWriter.writePush(segment, index)
+                self.__compileIdentifier(kind, STATUS_USED, kind, index)
+            else:                                       # className
+                self.__compileIdentifier(CATEGORY_CLASS, STATUS_USED)
+            name += self.__compileSymbol()              # '.'
+                                                        # subroutineName
+        name += self.__compileSubroutineName(STATUS_USED)
+        self.__compileSymbol()                          # '('
+        exp_count = self.CompileExpressionList()        # expressionList
+        self.__compileSymbol()                          # ')'
 
         # Compile VM
         self.__vmWriter.writeCall(name, exp_count)
@@ -212,7 +233,8 @@ class CompilationEngine:
         """
         Compiles a variable name.
         """
-        self.__compileIdentifier()
+        varName = self.__compileIdentifier()
+        return varName
 
     def __compileType(self):
         """
@@ -228,7 +250,7 @@ class CompilationEngine:
             type = self.__compileClassName()
         return type
 
-    def __compileSubroutineBody(self):
+    def __compileSubroutineBody(self, name):
         """
         Compiles a subroutine body.
         Syntax:
@@ -237,13 +259,16 @@ class CompilationEngine:
         self.__openTag('subroutineBody')    # <subroutineBody>
         self.__compileSymbol()              #   '{'
 
+        vars = 0
         # varDec*
         while self.__tokenizer.peek() == RE_VAR:
             self.compileVarDec()            #   varDec*
-            self.__vmWriter.writePush(SEGMENT_CONSTANT, 0)
+            vars += 1
+        self.__vmWriter.writeFunction(name, vars)
         self.compileStatements()            #   statements
         self.__compileSymbol()              #   '}'
         self.__closeTag()                   # </subroutineBody>
+        return vars
 
     ##################
     # PUBLIC METHODS #
@@ -304,18 +329,18 @@ class CompilationEngine:
 
         # Compile XML
         self.__openTag('subroutineDec')         # <subroutineDec>
-        self.__compileKeyWord()                 #   ('constructor' | 'function' |
-                                                #   'method')
+        keyword = self.__compileKeyWord()       #   ('constructor' |
+                                                #   'function' | 'method')
         if self.__tokenizer.peek() == RE_VOID:
             type = self.__compileKeyWord()      #   'void'
         else:
-            type = self.__compileType()                #   type
-        name = self.__compileSubroutineName()   #   soubroutineName
-        self.__vmWriter.writeFunction(name, 0)
+            type = self.__compileType()         #   type
+        name = self.__compileSubroutineName(    #   soubroutineName
+            STATUS_DEFINED)
         self.__compileSymbol()                  #   '('
         self.compileParameterList()             #   parameterList
         self.__compileSymbol()                  #   ')'
-        self.__compileSubroutineBody()          #   subroutineBody
+        self.__compileSubroutineBody(name)      #   subroutineBody
 
         # Compile VM
         self.__vmWriter.writeReturn(type)
@@ -329,8 +354,10 @@ class CompilationEngine:
         Syntax:
         ( (type varName) (',' type varName)*)?
         """
+        parameters = 0                          # no parameters?
         self.__openTag('parameterList')         # <parameterList>
         if self.__tokenizer.peek() != RE_BRACKETS_RIGHT:
+            parameters += 1                     # yes parameters!
             type = self.__compileType()         #   type
             name = self.__compileVarName()      #   varName
             self.__symbolTable.define(name, type, KIND_ARG)
@@ -339,7 +366,9 @@ class CompilationEngine:
                 type = self.__compileType()     #   type
                 name = self.__compileVarName()  #   varName
                 self.__symbolTable.define(name, type, KIND_ARG)
+                parameters += 1                 # more parameters :-O
         self.__closeTag()                       # </parametersList>
+        return parameters
 
     def compileVarDec(self):
         """
@@ -404,17 +433,26 @@ class CompilationEngine:
         Syntax:
         'let' varName ('[' expression ']')? '=' expression ';'
         """
-        self.__openTag('letStatement')  # <letStatement>
-        self.__compileKeyWord()         #   'let'
-        self.__compileVarName()         #   varName
+        self.__openTag('letStatement')      # <letStatement>
+        self.__compileKeyWord()             #   'let'
+        varName = self.__compileVarName()   #   varName
         if self.__tokenizer.peek() == RE_BRACKETS_SQUARE_LEFT:
-            self.__compileSymbol()      #   '['
-            self.CompileExpression()    # expression
-            self.__compileSymbol()      #   ']'
-        self.__compileSymbol()          #   '='
-        self.CompileExpression()        # expression
-        self.__compileSymbol()          #   ';'
-        self.__closeTag()               # </letStatement>
+            self.__compileSymbol()          #   '['
+            self.CompileExpression()        # expression
+            self.__compileSymbol()          #   ']'
+        self.__compileSymbol()              #   '='
+        self.CompileExpression()            # expression
+        self.__compileSymbol()              #   ';'
+        self.__closeTag()                   # </letStatement>
+
+        # Compile assignment to varName
+        segment = self.__symbolTable.segmentOf(varName)
+        # Compile only if the varName was defined
+        # (unlike class name of subroutine name)
+        if segment != KIND_NONE:  # varName was defined
+            index = self.__symbolTable.indexOf(varName)
+            self.__vmWriter.writePop(segment, index)
+
 
     def compileWhile(self):
         """
@@ -583,6 +621,7 @@ class CompilationEngine:
             while self.__tokenizer.peek() == RE_COMMA:
                 self.__compileSymbol()              #   ','
                 self.CompileExpression()
+                exp_count += 1
         self.__closeTag()                           # </expressionList>
         return exp_count
 

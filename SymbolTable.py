@@ -4,6 +4,7 @@
 # The symbol table has 2 nested scopes (class/subroutine).
 ##############################################################################
 from JackGrammar import *
+from VMGrammar import *
 KIND_STATIC = RE_STATIC
 KIND_FIELD = RE_FIELD
 KIND_VAR = RE_VAR
@@ -16,6 +17,10 @@ ERROR_UNKNOWN_IDENTIFIER_KIND = "Unknown identifier kind {}"
 ERROR_INVALID_SCOPE = "Invalid scope for identifier kind {}"
 ERROR_IDENTIFIER_NOT_IN_SCOPE = "Identifer {} is not int the current scope"
 
+KIND_2_SEGMENT = {KIND_ARG      : VM_SEGMENT_ARGUMENT,
+                  KIND_VAR      : VM_SEGMENT_VAR,
+                  KIND_FIELD    : VM_SEGMENT_FIELD,
+                  KIND_STATIC   : VM_SEGMENT_STATIC}
 
 class SymbolTable:
     class __NamedIdentifier:
@@ -87,7 +92,15 @@ class SymbolTable:
         return len([var for var in self.__current_scope.values()
                     if var.kind == kind])
 
-    def kindOf(self, name, ):
+    def segmentOf(self, name):
+        """
+        returns the VM segment of the variable with the given name
+        :param name: (String)
+        :return: VM segment of the given variable
+        """
+        return KIND_2_SEGMENT[self.kindOf(name)]
+
+    def kindOf(self, name):
         """
         Returns the kind of the named identifier in the current scope.
         Returns NONE if the identifier is unknown in the current scope.

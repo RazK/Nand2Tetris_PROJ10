@@ -2,7 +2,7 @@
 # This class writes VM commands into a file.
 # It encapsulates the VM command syntax.
 ############################################################
-#import VMGrammar as vg
+import VMGrammar as vg
 from JackGrammar import *
 
 ##########################
@@ -28,6 +28,9 @@ SEGMENT_CONSTANT = "constant"
 
 # ERRORS MSGs
 POP_TO_CONST_MSG = "Pop to constant segment is forbidden"
+
+# FUNCTIONS
+FUNC_NAME_DELIMITER = '.'
 
 # MORE
 SPACE = " "
@@ -87,8 +90,8 @@ class VMWriter:
         Writes a VM arithmetic command.
         :param command: ADD, SUB, NEG, EQ, GT, LT, AND, OR, NOT
         """
-        #vm_command = vg.JACK_2_VM_ARITHMETIC[command]
-        #self.__output.write(vm_command + NEWLINE)
+        vm_command = vg.JACK_2_VM_ARITHMETIC[command]
+        self.__output.write(vm_command + NEWLINE)
 
     def writeLabel(self, label):
         """
@@ -118,8 +121,9 @@ class VMWriter:
         :param name: The name of the called function.
         :param n_args: The number of arguments of the called function.
         """
-        self.__output.write(CALL + SPACE + name + SPACE + str(n_args) + NEWLINE)
-        self.__output.write(POP_RETURN + NEWLINE)
+        funcname = self.__funcname(name)
+        self.__output.write(
+            CALL + SPACE + funcname + SPACE + str(n_args) + NEWLINE)
 
     def writeFunction(self, name, n_locals):
         """
@@ -127,15 +131,15 @@ class VMWriter:
         :param name: The name of the declared function.
         :param n_locals: The number of local variables it has.
         """
-        funcname = self.__in_filename + "." + name
+        funcname = self.__funcname(name)
         self.__output.write(
             FUNCTION_DEC + SPACE + funcname + SPACE + str(n_locals) + NEWLINE)
 
-    def writeReturn(self, void=RE_VOID):
+    def writeReturn(self, returnType=RE_VOID):
         """
         Writes a VM return command.
         """
-        if (void != None):
+        if (returnType == RE_VOID):
             self.__output.write(RETURN_VOID + NEWLINE)
         self.__output.write(RETURN + NEWLINE)
 
@@ -144,16 +148,19 @@ class VMWriter:
         Writes the VM command matching the given symbol
         :param symbol: a Jack symbol
         """
-       # if symbol in vg.JACK_2_VM_ARITHMETIC:
-        #    self.writeArithmetic(symbol)
-        # elif symbol in vg.RE_BRACKETS_SQUARE_RIGHT:  # x[1] --> ]=add
-        #     self.writeArithmetic(vg.RE_PLUS)
+        if symbol in vg.JACK_2_VM_ARITHMETIC:
+           self.writeArithmetic(symbol)
+        elif symbol in vg.RE_BRACKETS_SQUARE_RIGHT:  # x[1] --> ]=add
+           self.writeArithmetic(vg.RE_PLUS)
 
     def close(self):
         """
         Closes the output file.
         """
         self.__output.close()
+
+    def __funcname(self, name):
+        return self.__in_filename + FUNC_NAME_DELIMITER + name
 
 
 ########################
