@@ -214,7 +214,7 @@ class CompilationEngine:
                 name = self.__symbolTable.typeOf(name)
                 # Push variable (this) and call class method
                 index = self.__symbolTable.indexOf()
-                segment = kind
+                segment = KIND_2_SEGMENT[kind]
                 self.__vmWriter.writePush(segment, index)
                 self.__compileIdentifier(kind, STATUS_USED, kind, index)
             else:                                       # className
