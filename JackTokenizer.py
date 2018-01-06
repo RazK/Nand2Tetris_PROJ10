@@ -30,7 +30,7 @@ class JackTokenizer:
         self.__code = EMPTY_STRING  # Default value
         self.__next_token_type = TOKEN_TYPE_NONE
         self.__next_token = TOKEN_NONE
-        self.__current_token_token_type = TOKEN_TYPE_NONE
+        self.__current_token_type = TOKEN_TYPE_NONE
         self.__current_token = TOKEN_NONE
         self.__readFileToString()
         self.advance()
@@ -82,6 +82,7 @@ class JackTokenizer:
         :param match: an re match
         """
         self.__code = self.__code[match.end():]
+        self.__next_token = re.sub(RE_BULLSHIT, '', self.__next_token)
 
     def __skipCommentsAndSpaces(self):
         """
@@ -115,7 +116,7 @@ class JackTokenizer:
 
         # Advance current to next token
         self.__current_token = self.__next_token
-        self.__current_token_token_type = self.__next_token_type
+        self.__current_token_type = self.__next_token_type
         # Match next token
         keyword = RE_KEYWORDS_COMPILED.match(self.__code)
         if keyword:
@@ -152,7 +153,7 @@ class JackTokenizer:
         Returns the type of the current token.
         :return: KEYWORD, SYMBOL, IDENTIFIER, INT_CONST, STRING_CONST
         """
-        return self.__current_token_token_type
+        return self.__current_token_type
 
     def keyWord(self):
         """

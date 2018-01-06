@@ -15,7 +15,7 @@ from JackTokenizer import *
 
 SOURCE_EXTENSION = ".jack"
 XML_EXTENSION = ".xml"
-VM_EXTENSION = ".vm_my"
+VM_EXTENSION = ".vm_ref"
 DEFAULT_SOURCE_FILE = "..\\Square.jack"
 
 XML_DELIM_TERMINAL = " "

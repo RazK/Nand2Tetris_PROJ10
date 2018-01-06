@@ -4,7 +4,7 @@ Noy Sternlicht  ID 205765365, noy.sternlicht@mail.huji.ac.il
 Raz Karl, 	    ID 311143127, raz.karl@mail.huji.ac.il
 ===============================================================================
 
-                       	Project 10 - Compiler
+                       	Project 11 - Compiler
                        -----------------------
 
 Submitted Files
@@ -24,6 +24,12 @@ JackTokenizer - This class takes apart the .jack file into tokens.
 
 CompilationEngine - Gets input from JackTokenizer and writes the parsed
 structure of the Jack code into an XML file.
+
+SymbolTable - Associates names with information needed for Jack compilation.
+
+VMGrammar - Defines constant that has to do with the VM language specifics.
+
+VMWriter - Writes VM commands into a file.
 
 Summary
 -------

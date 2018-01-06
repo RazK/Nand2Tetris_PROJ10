@@ -713,7 +713,7 @@ class CompilationEngine:
                 # true | false | null | this
                 # true | false | null - pushed to stack as constants
                 keyword = self.__tokenizer.peek()
-                if keyword in {RE_FALSE, RE_NULL, RE_TRUE, RE_FALSE}:
+                if keyword in {RE_FALSE, RE_NULL, RE_TRUE}:
                     self.__vmWriter.writePush(VM_SEGMENT_CONSTANT, 0)
                     if keyword == RE_TRUE:
                         self.__vmWriter.writeArithmetic(RE_TILDA, False)
