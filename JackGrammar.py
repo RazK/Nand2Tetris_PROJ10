@@ -13,10 +13,7 @@ RE_COMMENT_INLINE = r'/\*[\s\S]*?\*/'  # https://regex101.com/r/PbLBSc/3
 RE_COMMENT_END_OF_LINE_COMPILED = re.compile(RE_COMMENT_END_OF_LINE)
 RE_COMMENT_INLINE_COMPILED = re.compile(RE_COMMENT_INLINE)
 RE_WHITESPACE_COMPILED = re.compile(RE_WHITESPACES)
-RE_BULLSHIT = "((/.*[\\r\\n]+)|(/\*[\\s\\S]*?\*/)|(\s))*".format(
-    RE_COMMENT_END_OF_LINE,
-                                     RE_COMMENT_INLINE,
-                                     RE_WHITESPACES)
+RE_BULLSHIT = r'(?!\w)'#"((/.*[\\r\\n]+)|(/\*[\\s\\S]*?\*/)|(\s))*"
 
 ############
 # KEYWORDS #
@@ -112,7 +109,7 @@ RE_INTEGER_COMPILED = re.compile(RE_INTEGER)
 '''
 '"' A sequence of Unicode characters not including double quote or newline '"' 
 '''
-RE_STRING = r'\".*\"'  # https://regex101.com/r/rcXjLE/1
+RE_STRING = r'\".*?\"'  # https://regex101.com/r/rcXjLE/1
 RE_STRING_COMPILED = re.compile(RE_STRING)
 
 ###############

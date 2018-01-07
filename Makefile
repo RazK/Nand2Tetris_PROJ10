@@ -8,10 +8,10 @@
 #
 ###############################################################################
 
-# The executable for projects 6 is Assembler, so make sure the running
+# The executable for projects 11 is JackCompiler, so make sure the running
 # environment can execute it by changing permissions using chmod.
 # Obviously, your project may be more complicated and require a different
 # makefile.
 
 all:
-	chmod a+x JackAnalyzer
+	chmod a+x JackCompiler
